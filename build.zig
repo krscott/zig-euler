@@ -1,7 +1,7 @@
 const std = @import("std");
 const print = std.debug.print;
 
-fn build_single(b: *std.build.Builder, target: std.zig.CrossTarget, mode: std.builtin.Mode, test_step: *std.build.Step, exe_name: []const u8, root_src: []const u8, step_name: []const u8) void {
+fn build_single(b: *std.build.Builder, target: std.zig.CrossTarget, mode: std.builtin.Mode, test_all_step: *std.build.Step, exe_name: []const u8, root_src: []const u8, step_name: []const u8) void {
     const exe = b.addExecutable(exe_name, root_src);
     exe.setTarget(target);
     exe.setBuildMode(mode);
@@ -20,7 +20,7 @@ fn build_single(b: *std.build.Builder, target: std.zig.CrossTarget, mode: std.bu
     exe_tests.setTarget(target);
     exe_tests.setBuildMode(mode);
 
-    test_step.dependOn(&exe_tests.step);
+    test_all_step.dependOn(&exe_tests.step);
 }
 
 fn extractUnsigned(input: []const u8) ?u32 {
@@ -79,7 +79,7 @@ pub fn build(b: *std.build.Builder) !void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
-    const test_step = b.step("test", "Run unit tests");
+    const test_all_step = b.step("test", "Run all unit tests");
 
     {
         const dir_root = "./src/";
@@ -104,7 +104,7 @@ pub fn build(b: *std.build.Builder) !void {
 
             const step_name = if (step_n == null) entry.?.name else try std.fmt.allocPrint(allocator, "{d}", .{step_n});
 
-            build_single(b, target, mode, test_step, entry.?.name, filepath, step_name);
+            build_single(b, target, mode, test_all_step, entry.?.name, filepath, step_name);
         }
     }
 }
