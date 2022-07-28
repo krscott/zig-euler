@@ -30,10 +30,4 @@ pub const PrimeIter = struct {
             }
         }
     }
-
-    pub fn skipTo(self: *Self, limit: u64) void {
-        while (self.primes_list.items[self.primes_list.items.len - 1] < limit) {
-            self.next();
-        }
-    }
 };
