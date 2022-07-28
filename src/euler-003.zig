@@ -1,5 +1,6 @@
 const std = @import("std");
-const Allocator = std.mem.Allocator;
+
+const PrimeIter = @import("./common/prime_iter.zig").PrimeIter;
 
 pub fn main() anyerror!void {
     const stdout = std.io.getStdOut().writer();
@@ -9,37 +10,6 @@ pub fn main() anyerror!void {
 fn answer() u64 {
     return largestPrimeFactor(600851475143);
 }
-
-const PrimeIter = struct {
-    const Self = @This();
-    primes_list: std.ArrayList(u64),
-
-    pub fn init(allocator: Allocator) Self {
-        return Self{
-            .primes_list = std.ArrayList(u64).init(allocator),
-        };
-    }
-
-    pub fn next(self: *Self) !u64 {
-        if (self.primes_list.items.len == 0) {
-            try self.primes_list.append(2);
-            return 2;
-        }
-
-        var x = self.primes_list.items[self.primes_list.items.len - 1] + 1;
-
-        while (true) : (x += 1) {
-            for (self.primes_list.items) |p| {
-                if (x % p == 0) {
-                    break;
-                }
-            } else {
-                try self.primes_list.append(x);
-                return x;
-            }
-        }
-    }
-};
 
 fn largestPrimeFactor(input: u64) u64 {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
