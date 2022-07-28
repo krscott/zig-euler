@@ -46,6 +46,20 @@ fn extractUnsigned(input: []const u8) ?u32 {
     return null;
 }
 
+fn strEndsWith(input: []const u8, match: []const u8) bool {
+    if (input.len < match.len) {
+        return false;
+    }
+
+    for (input[input.len - match.len ..]) |c, i| {
+        if (c != match[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 pub fn build(b: *std.build.Builder) !void {
     // Here we use an ArenaAllocator backed by a DirectAllocator because a build is a short-lived,
     // one shot program. We don't need to waste time freeing memory and finding places to squish
@@ -75,6 +89,10 @@ pub fn build(b: *std.build.Builder) !void {
         var dir_iter = src_dir.iterate();
         var entry = try dir_iter.next();
         while (entry != null) : (entry = try dir_iter.next()) {
+            if (!strEndsWith(entry.?.name, ".zig")) {
+                continue;
+            }
+
             const filepath = try std.mem.concat(allocator, u8, &[_][]const u8{
                 dir_root,
                 entry.?.name,
