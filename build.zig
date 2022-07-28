@@ -13,12 +13,13 @@ fn build_single(b: *std.build.Builder, target: std.zig.CrossTarget, mode: std.bu
         run_cmd.addArgs(args);
     }
 
-    const run_step = b.step(step_name, exe_name);
-    run_step.dependOn(&run_cmd.step);
-
     const exe_tests = b.addTest(root_src);
     exe_tests.setTarget(target);
     exe_tests.setBuildMode(mode);
+
+    const run_step = b.step(step_name, exe_name);
+    run_step.dependOn(&exe_tests.step);
+    run_step.dependOn(&run_cmd.step);
 
     test_all_step.dependOn(&exe_tests.step);
 }
