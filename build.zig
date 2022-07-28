@@ -1,7 +1,7 @@
 const std = @import("std");
 const print = std.debug.print;
 
-fn build_single(b: *std.build.Builder, target: std.zig.CrossTarget, mode: std.builtin.Mode, test_all_step: *std.build.Step, exe_name: []const u8, root_src: []const u8, step_name: []const u8) void {
+fn buildSingle(b: *std.build.Builder, target: std.zig.CrossTarget, mode: std.builtin.Mode, test_all_step: *std.build.Step, exe_name: []const u8, root_src: []const u8, step_name: []const u8) void {
     const exe = b.addExecutable(exe_name, root_src);
     exe.setTarget(target);
     exe.setBuildMode(mode);
@@ -105,7 +105,7 @@ pub fn build(b: *std.build.Builder) !void {
 
             const step_name = if (step_n == null) entry.?.name else try std.fmt.allocPrint(allocator, "{d}", .{step_n});
 
-            build_single(b, target, mode, test_all_step, entry.?.name, filepath, step_name);
+            buildSingle(b, target, mode, test_all_step, entry.?.name, filepath, step_name);
         }
     }
 }
