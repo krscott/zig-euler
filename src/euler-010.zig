@@ -16,8 +16,8 @@ fn sumOfPrimesBelow(x: u64) u64 {
 
     var sum: u64 = 0;
 
-    while (true) {
-        const p = primes.next() catch unreachable;
+    while (primes.next()) |result| {
+        const p = result catch unreachable;
 
         if (p >= x) {
             break;

@@ -1,4 +1,5 @@
 const std = @import("std");
+const assert = std.debug.assert;
 
 const PrimeIter = @import("./common/prime_iter.zig").PrimeIter;
 
@@ -14,14 +15,11 @@ fn nthPrime(n: u64) u64 {
     const allocator = arena.allocator();
 
     var primes = PrimeIter.init(allocator);
+    defer primes.deinit();
 
-    var i: u64 = 1;
-    while (true) : (i += 1) {
-        const p = primes.next() catch unreachable;
-        if (i == n) {
-            return p;
-        }
-    }
+    // Translate from 1-index to 0-index
+    assert(n > 0);
+    return primes.get(n - 1) catch unreachable;
 }
 
 test "simple problem" {

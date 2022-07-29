@@ -20,8 +20,8 @@ fn largestPrimeFactor(input: u64) u64 {
     var largestFactor: u64 = 0;
     var x = input;
     var primes = PrimeIter.init(allocator);
-    while (true) {
-        const p: u64 = primes.next() catch |err| std.debug.panic("{s}\n", .{err});
+    while (primes.next()) |result| {
+        const p: u64 = result catch unreachable;
 
         // std.debug.print("{d}\n", .{p});
 

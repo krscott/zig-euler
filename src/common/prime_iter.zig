@@ -17,7 +17,9 @@ pub const PrimeIter = struct {
         self.primes_list.deinit();
     }
 
-    pub fn next(self: *Self) !u64 {
+    /// Get the next prime in the sequence.
+    /// Iterator `next` requires optional type, but this function never returns `null`
+    pub fn next(self: *Self) ?Allocator.Error!u64 {
         if (self.primes_list.items.len == 0) {
             try self.primes_list.append(2);
             return 2;
@@ -37,9 +39,11 @@ pub const PrimeIter = struct {
         }
     }
 
-    pub fn getNth(self: *Self, i: usize) !u64 {
+    /// Get n-th prime in the sequence of primes.
+    /// Starts at zero. i.e. `get(0) == 2`
+    pub fn get(self: *Self, i: usize) !u64 {
         while (self.primes_list.items.len <= i) {
-            _ = try self.next();
+            _ = try (self.next() orelse unreachable);
         }
         return self.primes_list.items[i];
     }
@@ -59,7 +63,7 @@ pub const PrimeFactors = struct {
         var prime_factor: u64 = undefined;
 
         while (true) : (i += 1) {
-            prime_factor = try primes.getNth(i);
+            prime_factor = try primes.get(i);
 
             // std.debug.print("{d} % {d}\n", .{ n, prime_factor });
 
