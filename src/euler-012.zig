@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 const max = std.math.max;
 const assert = std.debug.assert;
 
-const iterutil = @import("./common/iterutil.zig");
+const primelib = @import("./common/prime_iter.zig");
 
 pub fn main() anyerror!void {
     const stdout = std.io.getStdOut().writer();
@@ -44,66 +44,34 @@ fn TriangleNumbersIter(comptime T: type) type {
     };
 }
 
-/// Iterate over a number's factors.
-/// Let's do generics, because why not.
-fn FactorsIter(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        base: T,
-        lowest_prime: ?T,
-        last: T,
-
-        pub fn init(n: T) Self {
-            return Self{
-                .base = n,
-                .lowest_prime = null,
-                .last = 0,
-            };
-        }
-
-        pub fn next(self: *Self) ?T {
-            if (self.last == self.base) return null;
-
-            assert(self.last < self.base);
-
-            while (true) {
-                self.last = self.last + 1;
-
-                if (self.base % self.last == 0) {
-                    break;
-                }
-
-                // Short circuit optimization
-                if (self.lowest_prime != null and self.last > self.base / self.lowest_prime.?) {
-                    self.last = self.base;
-                    break;
-                }
-            }
-
-            if (self.lowest_prime == null and self.last > 1) {
-                self.lowest_prime = self.last;
-            }
-
-            return self.last;
-        }
-    };
-}
-
-fn countDivisors(input: u64) usize {
-    var divs = FactorsIter(u64).init(input);
-    const out = iterutil.count(&divs);
-    // std.debug.print("{d} has {d} divs\n", .{ input, out });
-    return out;
-}
-
 fn firstTriangleNumberWithOverNDivisors(n: usize) u64 {
+    if (n == 0) return 1;
+
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var primes = primelib.PrimeIter.init(allocator);
+    defer primes.deinit();
+
     var tris = TriangleNumbersIter(u64).init();
-    var triDivCounts = iterutil.map(countDivisors, &tris);
 
-    while (triDivCounts.next().? <= n) {}
+    while (tris.next()) |tri| {
+        if (tri == 1) continue;
 
-    return tris.last;
+        var factors = primelib.PrimeFactors.init(allocator, &primes, tri) catch unreachable;
+        defer factors.deinit();
+
+        const count = factors.count();
+
+        // std.debug.print("{d} has {d} factors\n", .{ tri, count });
+
+        if (count > n) {
+            return tri;
+        }
+    }
+
+    unreachable;
 }
 
 test "simple problem" {
@@ -114,6 +82,6 @@ fn answer() u64 {
     return firstTriangleNumberWithOverNDivisors(500);
 }
 
-// test "solution" {
-//     try std.testing.expectEqual(answer(), 12345);
-// }
+test "solution" {
+    try std.testing.expectEqual(answer(), 76576500);
+}
