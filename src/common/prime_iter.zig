@@ -4,6 +4,7 @@ const assert = std.debug.assert;
 
 pub const PrimeIter = struct {
     const Self = @This();
+    pub const Result = Allocator.Error!u64;
 
     primes_list: std.ArrayList(u64),
 
@@ -19,7 +20,7 @@ pub const PrimeIter = struct {
 
     /// Get the next prime in the sequence.
     /// Iterator `next` requires optional type, but this function never returns `null`
-    pub fn next(self: *Self) ?Allocator.Error!u64 {
+    pub fn next(self: *Self) ?Result {
         if (self.primes_list.items.len == 0) {
             try self.primes_list.append(2);
             return 2;
@@ -41,7 +42,7 @@ pub const PrimeIter = struct {
 
     /// Get n-th prime in the sequence of primes.
     /// Starts at zero. i.e. `get(0) == 2`
-    pub fn get(self: *Self, i: usize) !u64 {
+    pub fn get(self: *Self, i: usize) Result {
         while (self.primes_list.items.len <= i) {
             _ = try (self.next() orelse unreachable);
         }
