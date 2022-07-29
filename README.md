@@ -8,3 +8,7 @@ Run an individual solution number N (as in `euler-N.zig`) with `zig build N`.
 
 Run tests for all solutions with `zig build test`
 
+## Disclaimer
+
+This is me learning Zig and experimenting with its features. These solutions are probably
+not "production-ready". Caveat lector.
