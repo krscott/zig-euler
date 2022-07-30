@@ -3,88 +3,11 @@ const Allocator = std.mem.Allocator;
 const max = std.math.max;
 const assert = std.debug.assert;
 
+const BigDecimal = @import("./common/bigdecimal.zig").BigDecimal;
+
 pub fn main() anyerror!void {
     const stdout = std.io.getStdOut().writer();
     try stdout.print("{d}\n", .{try answer()});
-}
-
-const BigDecimal = struct {
-    const Self = @This();
-
-    digits: std.ArrayList(u8),
-
-    pub fn init(allocator: Allocator) Self {
-        return Self{
-            .digits = std.ArrayList(u8).init(allocator),
-        };
-    }
-
-    pub fn deinit(self: *Self) void {
-        self.digits.deinit();
-    }
-
-    pub fn initFromString(allocator: Allocator, s: []const u8) !Self {
-        var self = Self.init(allocator);
-
-        try self.digits.ensureTotalCapacity(s.len);
-
-        for (s) |c| {
-            assert(c >= '0' and c <= '9');
-            try self.digits.append(c);
-        }
-
-        return self;
-    }
-
-    pub fn add(self: *Self, other: []const u8) !void {
-        try self.digits.ensureTotalCapacity(other.len);
-
-        var carry: bool = false;
-        var i: usize = 0;
-        while (i < other.len or i < self.digits.items.len or carry) : (i += 1) {
-            const other_char = if (i < other.len) other[other.len - 1 - i] else '0';
-            assert(other_char >= '0' and other_char <= '9');
-
-            const self_char = if (i < self.digits.items.len) self.digits.items[self.digits.items.len - 1 - i] else '0';
-
-            const new_digit_int: u8 = (other_char - '0') + (self_char - '0') + if (carry) @as(u8, 1) else @as(u8, 0);
-
-            carry = new_digit_int >= 10;
-
-            const new_digit_char: u8 = (new_digit_int % 10) + '0';
-
-            if (i < self.digits.items.len) {
-                self.digits.items[self.digits.items.len - 1 - i] = new_digit_char;
-            } else {
-                try self.digits.insert(0, new_digit_char);
-            }
-        }
-    }
-
-    pub fn toSlice(self: *const Self) []u8 {
-        return self.digits.items;
-    }
-};
-
-test "BigDecimal" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    // const init: []const u8 = "123";
-    // const b: []const u8 = "9000";
-
-    var a = try BigDecimal.initFromString(allocator, "123");
-    // defer a.deinit();
-
-    try a.add("9000");
-
-    // const expect: []const u8 = "9123";
-    try std.testing.expectEqualSlices(u8, "9123", a.toSlice());
-
-    try a.add("900");
-
-    try std.testing.expectEqualSlices(u8, "10023", a.toSlice());
 }
 
 fn answer() !u64 {
@@ -202,9 +125,9 @@ fn answer() !u64 {
         try a.add(s);
     }
 
-    // std.debug.print("Full number: {s}\n", .{a.toSlice()});
+    // std.debug.print("Full number: {s}\n", .{a.slice});
 
-    return try std.fmt.parseUnsigned(u64, a.toSlice()[0..10], 10);
+    return try std.fmt.parseUnsigned(u64, a.slice[0..10], 10);
 }
 
 test "solution" {
