@@ -11,4 +11,4 @@ Run tests for all solutions with `zig build test`
 ## Disclaimer
 
 This is me learning Zig and experimenting with its features. These solutions are probably
-not "production-ready". Caveat lector.
+not anywhere near minimal, nor "production-ready". Caveat lector.

@@ -16,6 +16,7 @@ fn answer() u64 {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+
     _ = allocator;
 
     return 12345;
