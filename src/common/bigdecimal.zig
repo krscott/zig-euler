@@ -2,10 +2,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
-const BigDecimalError = error{
-    NonDigitCharacter,
-};
-
 /// String-based decimal type.
 /// Leading zeroes are excluded. Zero value (0) is represented as empty string ("").
 pub const BigDecimal = struct {
@@ -84,9 +80,35 @@ pub const BigDecimal = struct {
         self.slice[0] = ch;
     }
 
-    pub fn initFromString(allocator: Allocator, s: []const u8) Allocator.Error!Self {
-        var self = Self.init(allocator);
-        errdefer self.deinit();
+    /// Equivalent to multiplying by 10^p
+    pub fn shiftLeft(self: *Self, p: usize) Allocator.Error!void {
+        if (self.slice.len == 0) return;
+
+        const new_len = self.slice.len + p;
+
+        try self.ensureCapacity(new_len);
+
+        const old_slice = self.digits.items[self.digits.items.len - new_len + p ..];
+        self.slice = self.digits.items[self.digits.items.len - new_len ..];
+        const zeroes_slice = self.slice[old_slice.len..];
+
+        std.mem.copy(u8, self.slice, old_slice);
+
+        {
+            var i: usize = 0;
+            while (i < zeroes_slice.len) : (i += 1) {
+                zeroes_slice[i] = '0';
+            }
+        }
+    }
+
+    /// Set to zero
+    pub fn clear(self: *Self) void {
+        self.slice = &.{};
+    }
+
+    pub fn set(self: *Self, s: []const u8) Allocator.Error!void {
+        self.clear();
 
         try self.ensureCapacity(s.len);
 
@@ -94,11 +116,20 @@ pub const BigDecimal = struct {
         while (i < s.len) : (i += 1) {
             try self.pushCharFront(s[s.len - i - 1]);
         }
+    }
+
+    pub fn initFromString(allocator: Allocator, s: []const u8) Allocator.Error!Self {
+        var self = Self.init(allocator);
+        errdefer self.deinit();
+
+        try self.set(s);
 
         return self;
     }
 
-    pub fn add(self: *Self, other: []const u8) !void {
+    pub fn add(self: *Self, other: []const u8) Allocator.Error!void {
+        assert(self.slice.ptr != other.ptr);
+
         try self.ensureCapacity(other.len);
 
         var carry: bool = false;
@@ -107,10 +138,8 @@ pub const BigDecimal = struct {
             // Get other char ('0'...'9')
             const other_char = if (i < other.len) other[other.len - 1 - i] else '0';
 
-            if (other_char < '0' or other_char > '9') {
-                assert(false);
-                return;
-            }
+            // Must panic if char is bad, since `self` is now in a bad state.
+            assert(other_char >= '0' and other_char <= '9');
 
             // Get our char ('0'...'9')
             const self_char = if (i < self.slice.len) self.slice[self.slice.len - 1 - i] else '0';
@@ -132,22 +161,69 @@ pub const BigDecimal = struct {
             // std.debug.print("{c} + {c} -> {c} : {s}\n", .{ self_char, other_char, new_ch, self.slice });
         }
     }
+
+    pub fn multiply(self: *Self, other: []const u8) Allocator.Error!void {
+        assert(self.slice.ptr != other.ptr);
+
+        var acc = BigDecimal.init(self.digits.allocator);
+        defer acc.deinit();
+
+        var i: usize = 0;
+        while (i < other.len) : (i += 1) {
+            try acc.shiftLeft(1);
+
+            const v = other[i] - '0';
+            assert(v < 10);
+
+            var j: u8 = 0;
+            while (j < v) : (j += 1) {
+                try acc.add(self.slice);
+            }
+        }
+
+        try self.set(acc.slice);
+    }
 };
 
-test "BigDecimal" {
+test "add" {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
     var a = try BigDecimal.initFromString(allocator, "123");
-    // defer a.deinit();
+    defer a.deinit();
+
+    errdefer std.debug.print("a.slice = {s}\n", .{a.slice});
 
     try a.add("9000");
-
-    std.debug.print("{s}\n", .{a.slice});
     try std.testing.expectEqualSlices(u8, "9123", a.slice);
 
     try a.add("900");
-
     try std.testing.expectEqualSlices(u8, "10023", a.slice);
+}
+
+test "multiply" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    {
+        var a = try BigDecimal.initFromString(allocator, "34");
+        defer a.deinit();
+        errdefer std.debug.print("a.slice = {s}\n", .{a.slice});
+
+        try a.multiply("13");
+
+        try std.testing.expectEqualSlices(u8, "442", a.slice);
+    }
+
+    {
+        var a = try BigDecimal.initFromString(allocator, "23958233");
+        defer a.deinit();
+        errdefer std.debug.print("a.slice = {s}\n", .{a.slice});
+
+        try a.multiply("5830");
+
+        try std.testing.expectEqualSlices(u8, "139676498390", a.slice);
+    }
 }
