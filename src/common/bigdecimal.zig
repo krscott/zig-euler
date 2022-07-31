@@ -2,6 +2,25 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
+const zero_value: []u8 = "";
+
+fn trimLeadingZeroes(s: []const u8) []const u8 {
+    if (s.len == 0) return s;
+
+    var slice = s;
+
+    while (slice.len >= 2 and slice[0] == '0') {
+        slice = slice[1..];
+    }
+
+    // Special handling if slice == .{'0'}
+    if (slice[0] == '0') {
+        slice = zero_value;
+    }
+
+    return slice;
+}
+
 /// String-based decimal type.
 /// Leading zeroes are excluded. Zero value (0) is represented as empty string ("").
 pub const BigDecimal = struct {
@@ -15,11 +34,8 @@ pub const BigDecimal = struct {
 
         const self = Self{
             .digits = digits,
-            .slice = digits.items[0..],
+            .slice = zero_value,
         };
-
-        // Check our assumptions about how `ArrayList` works.
-        assert(self.slice.len == 0);
 
         return self;
     }
@@ -104,10 +120,12 @@ pub const BigDecimal = struct {
 
     /// Set to zero
     pub fn clear(self: *Self) void {
-        self.slice = &.{};
+        self.slice = zero_value;
     }
 
-    pub fn set(self: *Self, s: []const u8) Allocator.Error!void {
+    pub fn set(self: *Self, value: []const u8) Allocator.Error!void {
+        const s = trimLeadingZeroes(value);
+
         self.clear();
 
         try self.ensureCapacity(s.len);
@@ -127,8 +145,10 @@ pub const BigDecimal = struct {
         return self;
     }
 
-    pub fn add(self: *Self, other: []const u8) Allocator.Error!void {
-        assert(self.slice.ptr != other.ptr);
+    pub fn add(self: *Self, value: []const u8) Allocator.Error!void {
+        assert(self.slice.ptr == zero_value.ptr or self.slice.ptr != value.ptr);
+
+        const other = trimLeadingZeroes(value);
 
         try self.ensureCapacity(other.len);
 
@@ -162,8 +182,10 @@ pub const BigDecimal = struct {
         }
     }
 
-    pub fn multiply(self: *Self, other: []const u8) Allocator.Error!void {
-        assert(self.slice.ptr != other.ptr);
+    pub fn multiply(self: *Self, value: []const u8) Allocator.Error!void {
+        assert(self.slice.ptr == zero_value.ptr or self.slice.ptr != value.ptr);
+
+        const other = trimLeadingZeroes(value);
 
         var acc = BigDecimal.init(self.digits.allocator);
         defer acc.deinit();
@@ -226,4 +248,35 @@ test "multiply" {
 
         try std.testing.expectEqualSlices(u8, "139676498390", a.slice);
     }
+}
+
+test "zero values" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var a = BigDecimal.init(allocator);
+    defer a.deinit();
+
+    errdefer std.debug.print("a.slice = {s}\n", .{a.slice});
+
+    try std.testing.expectEqualSlices(u8, "", a.slice);
+
+    try a.set("000");
+    try std.testing.expectEqualSlices(u8, "", a.slice);
+
+    try a.add(zero_value);
+    try std.testing.expectEqualSlices(u8, "", a.slice);
+
+    try a.add("0");
+    try std.testing.expectEqualSlices(u8, "", a.slice);
+
+    try a.multiply("007");
+    try std.testing.expectEqualSlices(u8, "", a.slice);
+
+    try a.add("005");
+    try std.testing.expectEqualSlices(u8, "5", a.slice);
+
+    try a.multiply("0");
+    try std.testing.expectEqualSlices(u8, "", a.slice);
 }
