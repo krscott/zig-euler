@@ -21,7 +21,7 @@ fn smallestMultiple(divisors_up_to: u64) u64 {
                     break;
                 }
             } else {
-                divisors_list.append(x) catch |e| std.debug.panic("{s}\n", .{e});
+                divisors_list.append(x) catch unreachable;
             }
         }
     }

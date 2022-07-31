@@ -103,7 +103,7 @@ pub fn build(b: *std.build.Builder) !void {
             const step_n = extractUnsigned(entry.?.name);
             // print("Source {d}: {s}\n", .{ step_n, filepath });
 
-            const step_name = if (step_n == null) entry.?.name else try std.fmt.allocPrint(allocator, "{d}", .{step_n});
+            const step_name = if (step_n) |sn| try std.fmt.allocPrint(allocator, "{d}", .{sn}) else entry.?.name;
 
             buildSingle(b, target, mode, test_all_step, entry.?.name, filepath, step_name);
         }
