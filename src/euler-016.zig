@@ -43,6 +43,6 @@ fn answer() u64 {
     return sumOfDigitsOfPowerOf2(1000);
 }
 
-// test "solution" {
-//     try std.testing.expectEqual(answer(), 12345);
-// }
+test "solution" {
+    try std.testing.expectEqual(answer(), 1366);
+}
