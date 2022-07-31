@@ -3,8 +3,9 @@ const sliceutil = @import("./sliceutil.zig");
 const contains = sliceutil.contains;
 
 pub fn count(iter: anytype) usize {
+    var it = iter;
     var x: usize = 0;
-    while (iter.next() != null) {
+    while (it.next()) |_| {
         x += 1;
     }
     return x;
@@ -26,6 +27,48 @@ pub fn MapIter(comptime Iter: type, comptime f: anytype) type {
 
 pub fn map(comptime f: anytype, iter: anytype) MapIter(@TypeOf(iter), f) {
     return MapIter(@TypeOf(iter), f){ .base = iter };
+}
+
+pub fn FilterIter(comptime Iter: type, comptime f: anytype) type {
+    const Output: type = @typeInfo(@TypeOf(Iter.next)).Fn.return_type.?;
+
+    return struct {
+        const Self = @This();
+
+        base: Iter,
+
+        pub fn next(self: *Self) Output {
+            while (self.base.next()) |x| {
+                if (f(x) == true) {
+                    return x;
+                }
+            }
+            return null;
+        }
+    };
+}
+
+pub fn filter(comptime f: anytype, iter: anytype) FilterIter(@TypeOf(iter), f) {
+    return FilterIter(@TypeOf(iter), f){ .base = iter };
+}
+
+pub fn UntilIter(comptime Iter: type, comptime f: anytype) type {
+    const Output: type = @typeInfo(@TypeOf(Iter.next)).Fn.return_type.?;
+
+    return struct {
+        const Self = @This();
+
+        base: Iter,
+
+        pub fn next(self: *Self) Output {
+            const x = self.base.next() orelse return null;
+            return if (f(x)) null else x;
+        }
+    };
+}
+
+pub fn until(comptime f: anytype, iter: anytype) UntilIter(@TypeOf(iter), f) {
+    return UntilIter(@TypeOf(iter), f){ .base = iter };
 }
 
 pub fn SplitDelimIter(comptime T: type) type {
