@@ -37,7 +37,7 @@ pub fn with_context(context: anytype, iter: anytype) ContextIter(@TypeOf(context
     return ContextIter(@TypeOf(context), @TypeOf(iter)){ .context = context, .base = iter };
 }
 
-pub fn MapIter(comptime Iter: type, comptime f: anytype) type {
+pub fn MapIter(comptime f: anytype, comptime Iter: type) type {
     const Output: type = @typeInfo(@TypeOf(f)).Fn.return_type.?;
 
     return struct {
@@ -51,19 +51,19 @@ pub fn MapIter(comptime Iter: type, comptime f: anytype) type {
     };
 }
 
-pub fn map(comptime f: anytype, iter: anytype) MapIter(@TypeOf(iter), f) {
-    return MapIter(@TypeOf(iter), f){ .base = iter };
+pub fn map(comptime f: anytype, iter: anytype) MapIter(f, @TypeOf(iter)) {
+    return MapIter(f, @TypeOf(iter)){ .base = iter };
 }
 
-pub fn FilterIter(comptime Iter: type, comptime f: anytype) type {
-    const Output: type = @typeInfo(@TypeOf(Iter.next)).Fn.return_type.?;
+pub fn FilterIter(comptime f: anytype, comptime Iter: type) type {
+    const Output: type = @typeInfo(@typeInfo(@TypeOf(Iter.next)).Fn.return_type.?).Optional.child;
 
     return struct {
         const Self = @This();
 
         base: Iter,
 
-        pub fn next(self: *Self) Output {
+        pub fn next(self: *Self) ?Output {
             while (self.base.next()) |x| {
                 if (f(x) == true) {
                     return x;
@@ -74,27 +74,27 @@ pub fn FilterIter(comptime Iter: type, comptime f: anytype) type {
     };
 }
 
-pub fn filter(comptime f: anytype, iter: anytype) FilterIter(@TypeOf(iter), f) {
-    return FilterIter(@TypeOf(iter), f){ .base = iter };
+pub fn filter(comptime f: anytype, iter: anytype) FilterIter(f, @TypeOf(iter)) {
+    return FilterIter(f, @TypeOf(iter)){ .base = iter };
 }
 
-pub fn UntilIter(comptime Iter: type, comptime f: anytype) type {
-    const Output: type = @typeInfo(@TypeOf(Iter.next)).Fn.return_type.?;
+pub fn UntilIter(comptime f: anytype, comptime Iter: type) type {
+    const Output: type = @typeInfo(@typeInfo(@TypeOf(Iter.next)).Fn.return_type.?).Optional.child;
 
     return struct {
         const Self = @This();
 
         base: Iter,
 
-        pub fn next(self: *Self) Output {
+        pub fn next(self: *Self) ?Output {
             const x = self.base.next() orelse return null;
             return if (f(x)) null else x;
         }
     };
 }
 
-pub fn until(comptime f: anytype, iter: anytype) UntilIter(@TypeOf(iter), f) {
-    return UntilIter(@TypeOf(iter), f){ .base = iter };
+pub fn until(comptime f: anytype, iter: anytype) UntilIter(f, @TypeOf(iter)) {
+    return UntilIter(f, @TypeOf(iter)){ .base = iter };
 }
 
 pub fn SplitDelimIter(comptime T: type) type {
