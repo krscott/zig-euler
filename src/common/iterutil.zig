@@ -2,13 +2,38 @@ const std = @import("std");
 const sliceutil = @import("./sliceutil.zig");
 const contains = sliceutil.contains;
 
-pub fn count(iter: anytype) usize {
-    var it = iter;
-    var x: usize = 0;
-    while (it.next()) |_| {
-        x += 1;
+pub fn IteratorMixin(comptime Self: type) type {
+    if (!@hasDecl(Self, "next")) {
+        @compileError("Expected method `next(*" ++ @typeName(Self) ++ ") ?T` in " ++ @typeName(Self));
     }
-    return x;
+
+    // const T = @typeInfo(@typeInfo(@TypeOf(Self.next)).Fn.return_type.?).Optional.child;
+
+    return struct {
+        pub fn with_context(self: *Self, context: anytype) ContextIter(Self, @TypeOf(context)) {
+            return ContextIter(Self, @TypeOf(context)){ .context = context, .base = self };
+        }
+
+        pub fn map(self: *Self, comptime f: anytype) MapIter(Self, f) {
+            return MapIter(Self, f){ .base = self };
+        }
+
+        pub fn filter(self: *Self, comptime f: anytype) FilterIter(Self, f) {
+            return FilterIter(Self, f){ .base = self };
+        }
+
+        pub fn until(self: *Self, comptime f: anytype) UntilIter(Self, f) {
+            return UntilIter(Self, f){ .base = self };
+        }
+
+        pub fn count(self: *Self) usize {
+            var x: usize = 0;
+            while (self.next()) |_| {
+                x += 1;
+            }
+            return x;
+        }
+    };
 }
 
 pub fn Context(comptime ContextType: type, comptime DataType: type) type {
@@ -18,50 +43,46 @@ pub fn Context(comptime ContextType: type, comptime DataType: type) type {
     };
 }
 
-pub fn ContextIter(comptime ContextType: type, comptime Iter: type) type {
-    const DataType: type = @typeInfo(@typeInfo(@TypeOf(Iter.next)).Fn.return_type.?).Optional.child;
+pub fn ContextIter(comptime BaseIter: type, comptime ContextType: type) type {
+    const DataType: type = @typeInfo(@typeInfo(@TypeOf(BaseIter.next)).Fn.return_type.?).Optional.child;
 
     return struct {
         const Self = @This();
 
         context: ContextType,
-        base: Iter,
+        base: *BaseIter,
 
         pub fn next(self: *Self) ?Context(ContextType, DataType) {
             return Context(ContextType, DataType){ .context = self.context, .data = self.base.next() orelse return null };
         }
+
+        pub usingnamespace IteratorMixin(Self);
     };
 }
 
-pub fn with_context(context: anytype, iter: anytype) ContextIter(@TypeOf(context), @TypeOf(iter)) {
-    return ContextIter(@TypeOf(context), @TypeOf(iter)){ .context = context, .base = iter };
-}
-
-pub fn MapIter(comptime f: anytype, comptime Iter: type) type {
+pub fn MapIter(comptime BaseIter: type, comptime f: anytype) type {
     const Output: type = @typeInfo(@TypeOf(f)).Fn.return_type.?;
 
     return struct {
         const Self = @This();
 
-        base: Iter,
+        base: *BaseIter,
 
         pub fn next(self: *Self) ?Output {
             return f(self.base.next() orelse return null);
         }
+
+        pub usingnamespace IteratorMixin(Self);
     };
 }
 
-pub fn map(comptime f: anytype, iter: anytype) MapIter(f, @TypeOf(iter)) {
-    return MapIter(f, @TypeOf(iter)){ .base = iter };
-}
-
-pub fn FilterIter(comptime f: anytype, comptime Iter: type) type {
-    const Output: type = @typeInfo(@typeInfo(@TypeOf(Iter.next)).Fn.return_type.?).Optional.child;
+pub fn FilterIter(comptime BaseIter: type, comptime f: anytype) type {
+    const Output: type = @typeInfo(@typeInfo(@TypeOf(BaseIter.next)).Fn.return_type.?).Optional.child;
 
     return struct {
         const Self = @This();
 
-        base: Iter,
+        base: *BaseIter,
 
         pub fn next(self: *Self) ?Output {
             while (self.base.next()) |x| {
@@ -71,30 +92,26 @@ pub fn FilterIter(comptime f: anytype, comptime Iter: type) type {
             }
             return null;
         }
+
+        pub usingnamespace IteratorMixin(Self);
     };
 }
 
-pub fn filter(comptime f: anytype, iter: anytype) FilterIter(f, @TypeOf(iter)) {
-    return FilterIter(f, @TypeOf(iter)){ .base = iter };
-}
-
-pub fn UntilIter(comptime f: anytype, comptime Iter: type) type {
-    const Output: type = @typeInfo(@typeInfo(@TypeOf(Iter.next)).Fn.return_type.?).Optional.child;
+pub fn UntilIter(comptime BaseIter: type, comptime f: anytype) type {
+    const Output: type = @typeInfo(@typeInfo(@TypeOf(BaseIter.next)).Fn.return_type.?).Optional.child;
 
     return struct {
         const Self = @This();
 
-        base: Iter,
+        base: *BaseIter,
 
         pub fn next(self: *Self) ?Output {
             const x = self.base.next() orelse return null;
             return if (f(x)) null else x;
         }
-    };
-}
 
-pub fn until(comptime f: anytype, iter: anytype) UntilIter(f, @TypeOf(iter)) {
-    return UntilIter(f, @TypeOf(iter)){ .base = iter };
+        pub usingnamespace IteratorMixin(Self);
+    };
 }
 
 pub fn SplitDelimIter(comptime T: type) type {
@@ -149,6 +166,8 @@ pub fn SplitDelimIter(comptime T: type) type {
                 return out;
             }
         }
+
+        pub usingnamespace IteratorMixin(Self);
     };
 }
 

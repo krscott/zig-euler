@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const PrimeIter = @import("./common/prime_iter.zig").PrimeIter;
-const map = @import("./common/iterutil.zig").map;
 
 pub fn main() anyerror!void {
     const stdout = std.io.getStdOut().writer();
@@ -28,7 +27,7 @@ fn largestPrimeFactor(input: u64) u64 {
     var primes = PrimeIter.init(allocator);
     defer primes.deinit();
 
-    var primes_ok = map(assert_ok, primes);
+    var primes_ok = primes.map(assert_ok);
 
     while (primes_ok.next()) |p| {
         // std.debug.print("{d}\n", .{p});

@@ -2,6 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
+const iterutil = @import("./iterutil.zig");
+
 pub const PrimeIter = struct {
     const Self = @This();
     pub const Result = Allocator.Error!u64;
@@ -48,6 +50,8 @@ pub const PrimeIter = struct {
         }
         return self.primes_list.items[i];
     }
+
+    pub usingnamespace iterutil.IteratorMixin(Self);
 };
 
 pub const PrimeFactors = struct {

@@ -4,10 +4,6 @@ const max = std.math.max;
 const assert = std.debug.assert;
 
 const iterutil = @import("./common/iterutil.zig");
-const filter = iterutil.filter;
-const count = iterutil.count;
-const until = iterutil.until;
-const with_context = iterutil.with_context;
 const Context = iterutil.Context;
 
 pub fn main() anyerror!void {
@@ -151,6 +147,8 @@ const DateIter = struct {
 
         return self.date;
     }
+
+    pub usingnamespace iterutil.IteratorMixin(Self);
 };
 
 fn is20thCSundayTheFirst(ctx: Context(u16, Date)) bool {
@@ -163,9 +161,12 @@ fn isYear(ctx: Context(u16, Date)) bool {
 }
 
 fn countFirstSundays(start: Date, end_year: u16) usize {
-    var dates = DateIter.init(start);
-
-    return count(filter(is20thCSundayTheFirst, until(isYear, with_context(end_year, dates))));
+    return DateIter
+        .init(start)
+        .with_context(end_year)
+        .until(isYear)
+        .filter(is20thCSundayTheFirst)
+        .count();
 }
 
 test "since 2000" {

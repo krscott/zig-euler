@@ -15,6 +15,6 @@ not anywhere near minimal, nor "production-ready". Caveat lector.
 
 That said, I've created helper libs (`./src/common/*.zig`) that might be useful outside of academic problems:
 
-* `iterutil.zig` - Iterator helpers (e.g. `map(f, iter)`) that work with generic function and iterator duck-types. Will be extra nice once [function expressions](https://github.com/ziglang/zig/issues/1717) are added.
+* `iterutil.zig` - Iterator helpers (e.g. `iter.map(func1).filter(func2)`) that work with generic function and iterator duck-types. Will be extra nice once [function expressions](https://github.com/ziglang/zig/issues/1717) are added. (Looks like there exist a few [good libraries](https://github.com/ziglang/zig/issues/6185#issuecomment-683261019) already)
 * `bigdecimal.zig` - Handling large ints represented by strings. Directly uses decimal operations.
 * `sliceutil.zig` - Generic slice inspection methods (e.g. `indexOf()` and `contains()`)
