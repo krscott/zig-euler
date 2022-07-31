@@ -7,6 +7,8 @@ const iterutil = @import("./common/iterutil.zig");
 const filter = iterutil.filter;
 const count = iterutil.count;
 const until = iterutil.until;
+const with_context = iterutil.with_context;
+const Context = iterutil.Context;
 
 pub fn main() anyerror!void {
     const stdout = std.io.getStdOut().writer();
@@ -151,49 +153,50 @@ const DateIter = struct {
     }
 };
 
-fn is20thCSundayTheFirst(d: Date) bool {
+fn is20thCSundayTheFirst(ctx: Context(u16, Date)) bool {
+    const d = ctx.data;
     return d.year >= 1901 and d.year <= 2000 and d.weekday == Weekday.Sunday and d.day == 1;
 }
 
-fn isYear2001(d: Date) bool {
-    return d.year == 2001;
+fn isYear(ctx: Context(u16, Date)) bool {
+    return ctx.data.year == ctx.context;
 }
 
-fn countFirstSundaysBefore2001(start: Date) usize {
+fn countFirstSundays(start: Date, end_year: u16) usize {
     var dates = DateIter.init(start);
 
-    return count(filter(is20thCSundayTheFirst, until(isYear2001, dates)));
+    return count(filter(is20thCSundayTheFirst, until(isYear, with_context(end_year, dates))));
 }
 
 test "since 2000" {
-    var first_sundays = countFirstSundaysBefore2001(Date{
+    var first_sundays = countFirstSundays(Date{
         .year = 2000,
         .month = Month.January,
         .day = 1,
         .weekday = Weekday.Saturday,
-    });
+    }, 2001);
 
     try std.testing.expectEqual(first_sundays, 1);
 }
 
 test "since 1998" {
-    var first_sundays = countFirstSundaysBefore2001(Date{
+    var first_sundays = countFirstSundays(Date{
         .year = 1998,
         .month = Month.January,
         .day = 1,
         .weekday = Weekday.Thursday,
-    });
+    }, 2001);
 
     try std.testing.expectEqual(first_sundays, 5);
 }
 
 fn answer() u64 {
-    return countFirstSundaysBefore2001(Date{
+    return countFirstSundays(Date{
         .year = 1900,
         .month = Month.January,
         .day = 1,
         .weekday = Weekday.Monday,
-    });
+    }, 2001);
 }
 
 test "solution" {

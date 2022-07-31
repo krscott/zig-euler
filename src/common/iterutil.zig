@@ -11,6 +11,32 @@ pub fn count(iter: anytype) usize {
     return x;
 }
 
+pub fn Context(comptime ContextType: type, comptime DataType: type) type {
+    return struct {
+        context: ContextType,
+        data: DataType,
+    };
+}
+
+pub fn ContextIter(comptime ContextType: type, comptime Iter: type) type {
+    const DataType: type = @typeInfo(@typeInfo(@TypeOf(Iter.next)).Fn.return_type.?).Optional.child;
+
+    return struct {
+        const Self = @This();
+
+        context: ContextType,
+        base: Iter,
+
+        pub fn next(self: *Self) ?Context(ContextType, DataType) {
+            return Context(ContextType, DataType){ .context = self.context, .data = self.base.next() orelse return null };
+        }
+    };
+}
+
+pub fn with_context(context: anytype, iter: anytype) ContextIter(@TypeOf(context), @TypeOf(iter)) {
+    return ContextIter(@TypeOf(context), @TypeOf(iter)){ .context = context, .base = iter };
+}
+
 pub fn MapIter(comptime Iter: type, comptime f: anytype) type {
     const Output: type = @typeInfo(@TypeOf(f)).Fn.return_type.?;
 
