@@ -151,8 +151,7 @@ const DateIter = struct {
     pub usingnamespace iterutil.IteratorMixin(Self);
 };
 
-fn is20thCSundayTheFirst(ctx: Context(u16, Date)) bool {
-    const d = ctx.data;
+fn is20thCSundayTheFirst(d: Date) bool {
     return d.year >= 1901 and d.year <= 2000 and d.weekday == Weekday.Sunday and d.day == 1;
 }
 
@@ -163,8 +162,9 @@ fn isYear(ctx: Context(u16, Date)) bool {
 fn countFirstSundays(start: Date, end_year: u16) usize {
     return DateIter
         .init(start)
-        .with_context(end_year)
+        .withContext(end_year)
         .until(isYear)
+        .dropContext()
         .filter(is20thCSundayTheFirst)
         .count();
 }

@@ -2,20 +2,36 @@ const std = @import("std");
 const sliceutil = @import("./sliceutil.zig");
 const contains = sliceutil.contains;
 
+fn FnReturnType(comptime f: anytype) type {
+    return @typeInfo(@TypeOf(f)).Fn.return_type.?;
+}
+
 pub fn IteratorMixin(comptime Self: type) type {
     if (!@hasDecl(Self, "next")) {
-        @compileError("Expected method `next(*" ++ @typeName(Self) ++ ") ?T` in " ++ @typeName(Self));
+        @compileError("Expected method `next(*" ++ @typeName(Self) ++ ") ?Item` in " ++ @typeName(Self));
     }
 
-    // const T = @typeInfo(@typeInfo(@TypeOf(Self.next)).Fn.return_type.?).Optional.child;
+    const Item = @typeInfo(@typeInfo(@TypeOf(Self.next)).Fn.return_type.?).Optional.child;
 
     return struct {
-        pub fn with_context(self: *Self, context: anytype) ContextIter(Self, @TypeOf(context)) {
+        pub fn withContext(self: *Self, context: anytype) ContextIter(Self, @TypeOf(context)) {
             return ContextIter(Self, @TypeOf(context)){ .context = context, .base = self };
         }
 
-        pub fn map(self: *Self, comptime f: anytype) MapIter(Self, f) {
-            return MapIter(Self, f){ .base = self };
+        pub usingnamespace if (@typeInfo(Item) == .Struct and @hasField(Item, "context")) struct {
+            const ContextDataType = @typeInfo(Item).Struct.fields[1].field_type;
+
+            fn getContextData(context: anytype) ContextDataType {
+                return context.data;
+            }
+
+            pub fn dropContext(self: *Self) MapIter(Self, getContextData, ContextDataType) {
+                return MapIter(Self, getContextData, ContextDataType){ .base = self };
+            }
+        } else struct {};
+
+        pub fn map(self: *Self, comptime f: anytype) MapIter(Self, f, FnReturnType(f)) {
+            return MapIter(Self, f, FnReturnType(f)){ .base = self };
         }
 
         pub fn filter(self: *Self, comptime f: anytype) FilterIter(Self, f) {
@@ -60,15 +76,15 @@ pub fn ContextIter(comptime BaseIter: type, comptime ContextType: type) type {
     };
 }
 
-pub fn MapIter(comptime BaseIter: type, comptime f: anytype) type {
-    const Output: type = @typeInfo(@TypeOf(f)).Fn.return_type.?;
+pub fn MapIter(comptime BaseIter: type, comptime f: anytype, comptime Item: type) type {
+    // const Item: type = @typeInfo(@TypeOf(f)).Fn.return_type.?;
 
     return struct {
         const Self = @This();
 
         base: *BaseIter,
 
-        pub fn next(self: *Self) ?Output {
+        pub fn next(self: *Self) ?Item {
             return f(self.base.next() orelse return null);
         }
 
@@ -77,14 +93,14 @@ pub fn MapIter(comptime BaseIter: type, comptime f: anytype) type {
 }
 
 pub fn FilterIter(comptime BaseIter: type, comptime f: anytype) type {
-    const Output: type = @typeInfo(@typeInfo(@TypeOf(BaseIter.next)).Fn.return_type.?).Optional.child;
+    const Item: type = @typeInfo(@typeInfo(@TypeOf(BaseIter.next)).Fn.return_type.?).Optional.child;
 
     return struct {
         const Self = @This();
 
         base: *BaseIter,
 
-        pub fn next(self: *Self) ?Output {
+        pub fn next(self: *Self) ?Item {
             while (self.base.next()) |x| {
                 if (f(x) == true) {
                     return x;
@@ -98,14 +114,14 @@ pub fn FilterIter(comptime BaseIter: type, comptime f: anytype) type {
 }
 
 pub fn UntilIter(comptime BaseIter: type, comptime f: anytype) type {
-    const Output: type = @typeInfo(@typeInfo(@TypeOf(BaseIter.next)).Fn.return_type.?).Optional.child;
+    const Item: type = @typeInfo(@typeInfo(@TypeOf(BaseIter.next)).Fn.return_type.?).Optional.child;
 
     return struct {
         const Self = @This();
 
         base: *BaseIter,
 
-        pub fn next(self: *Self) ?Output {
+        pub fn next(self: *Self) ?Item {
             const x = self.base.next() orelse return null;
             return if (f(x)) null else x;
         }
