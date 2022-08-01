@@ -13,10 +13,14 @@ Run tests for all solutions with `zig build test`
 This is me learning Zig and experimenting with its features. These solutions are probably
 not anywhere near minimal, nor "production-ready". Caveat lector.
 
-That said, I've created helper libs (`./src/common/*.zig`) that might be useful outside of academic problems:
+That said, there are a few libs in (`./src/common/`) which show off Zig's novel approach
+to generics, which I can only really describe as "static duck-typing":
 
-* `iterutil.zig` - Iterator helpers (e.g. `iter.map(func1).filter(func2)`) that work with generic function and iterator duck-types. Will be extra nice once [function expressions](https://github.com/ziglang/zig/issues/1717) are added. (Looks like there exist a few [good libraries](https://github.com/ziglang/zig/issues/6185#issuecomment-683261019) already)
-* `bigdecimal.zig` - Handling large ints represented by strings. Directly uses decimal operations.
+* `iterutil.zig` - Iterator helpers (e.g. `iter.map(func1).filter(func2)`) that work with
+  generic function and iterators. Will be extra nice once
+  [function expressions](https://github.com/ziglang/zig/issues/1717) are added.
+  (Looks like there exist a few
+  [good libraries](https://github.com/ziglang/zig/issues/6185#issuecomment-683261019) already)
 * `sliceutil.zig` - Generic slice inspection methods (e.g. `indexOf()` and `contains()`)
 
 ## Zig Version
