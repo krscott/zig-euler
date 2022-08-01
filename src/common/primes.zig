@@ -91,18 +91,18 @@ pub fn Primes(comptime T: type) type {
             return self.cache.items[i];
         }
 
-        pub fn prime_factors(self: *Self, allocator: Allocator, n: T) Allocator.Error!PrimeFactors(T) {
+        pub fn primeFactors(self: *Self, allocator: Allocator, n: T) Allocator.Error!PrimeFactors(T) {
             return PrimeFactors(T).init(allocator, self, n);
         }
 
-        pub fn count_factors(self: *Self, n: T) Allocator.Error!usize {
-            var pf = try self.prime_factors(self.cache.allocator, n);
+        pub fn countFactors(self: *Self, n: T) Allocator.Error!usize {
+            var pf = try self.primeFactors(self.cache.allocator, n);
             defer pf.deinit();
             return pf.count();
         }
 
-        pub fn all_factors(self: *Self, allocator: Allocator, n: T) Allocator.Error!std.ArrayList(T) {
-            var pf = try self.prime_factors(self.cache.allocator, n);
+        pub fn allFactors(self: *Self, allocator: Allocator, n: T) Allocator.Error!std.ArrayList(T) {
+            var pf = try self.primeFactors(self.cache.allocator, n);
             defer pf.deinit();
 
             return pf.factors(allocator);
@@ -195,7 +195,7 @@ pub fn PrimeFactors(comptime T: type) type {
             var factor_list = std.ArrayList(T).init(allocator);
             try factor_list.append(1);
 
-            var factor_combo_iter = try iterutil.all_combinations(T, allocator, prime_factor_list.items[0..]);
+            var factor_combo_iter = try iterutil.allCombinations(T, allocator, prime_factor_list.items[0..]);
             defer factor_combo_iter.deinit();
 
             while (factor_combo_iter.next()) |combo| {
@@ -217,9 +217,9 @@ test "PrimesIter and PrimeFactors" {
     var primes = Primes(u64).init(std.testing.allocator);
     defer primes.deinit();
 
-    try std.testing.expectEqual(@as(u64, 8), try primes.count_factors(24));
+    try std.testing.expectEqual(@as(u64, 8), try primes.countFactors(24));
 
-    var factors = try primes.all_factors(std.testing.allocator, 324);
+    var factors = try primes.allFactors(std.testing.allocator, 324);
     defer factors.deinit();
 
     std.sort.sort(u64, factors.items[0..], {}, comptime std.sort.asc(u64));

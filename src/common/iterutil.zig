@@ -377,13 +377,13 @@ pub fn AllCombosIter(comptime T: type) type {
     };
 }
 
-pub fn all_combinations(comptime T: type, allocator: Allocator, input: []const T) Allocator.Error!AllCombosIter(T) {
+pub fn allCombinations(comptime T: type, allocator: Allocator, input: []const T) Allocator.Error!AllCombosIter(T) {
     return AllCombosIter(T).init(allocator, input);
 }
 
-test "all_combinations()" {
+test "allCombinations()" {
     const input: [3]usize = .{ 1, 2, 3 };
-    var it = try all_combinations(usize, std.testing.allocator, input[0..]);
+    var it = try allCombinations(usize, std.testing.allocator, input[0..]);
     defer it.deinit();
 
     try std.testing.expectEqualSlices(usize, &.{1}, it.next().?);

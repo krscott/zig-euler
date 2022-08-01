@@ -38,7 +38,7 @@ const AmicableCache = struct {
         if (n <= 1) return n;
         if (self.sum_cache.get(n)) |sum| return sum;
 
-        var factors = try self.primes.all_factors(self.allocator, n);
+        var factors = try self.primes.allFactors(self.allocator, n);
         defer factors.deinit();
 
         var sum: u64 = 1;
