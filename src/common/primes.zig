@@ -86,14 +86,21 @@ pub fn Primes(comptime T: type) type {
             return self.cache.items[i];
         }
 
-        pub fn prime_factors(self: *Self, n: T) Allocator.Error!PrimeFactors(T) {
-            return PrimeFactors(T).init(self.cache.allocator, self, n);
+        pub fn prime_factors(self: *Self, allocator: Allocator, n: T) Allocator.Error!PrimeFactors(T) {
+            return PrimeFactors(T).init(allocator, self, n);
         }
 
-        pub fn count_prime_factors(self: *Self, n: T) Allocator.Error!usize {
-            var pf = try self.prime_factors(n);
+        pub fn count_factors(self: *Self, n: T) Allocator.Error!usize {
+            var pf = try self.prime_factors(self.cache.allocator, n);
             defer pf.deinit();
             return pf.count();
+        }
+
+        pub fn all_factors(self: *Self, allocator: Allocator, n: T) Allocator.Error!std.ArrayList(T) {
+            var pf = try self.prime_factors(self.cache.allocator, n);
+            defer pf.deinit();
+
+            return pf.factors(allocator);
         }
     };
 }
@@ -103,9 +110,9 @@ pub fn PrimeFactors(comptime T: type) type {
         const Self = @This();
         const HashMap = std.AutoHashMap(T, usize);
 
-        factors: HashMap,
+        prime_factor_counts: HashMap,
 
-        fn getPrimeFactorsHelper(primes: *Primes(T), factors: *HashMap, n: T) Allocator.Error!void {
+        fn getPrimeFactorsHelper(primes: *Primes(T), prime_factor_counts: *HashMap, n: T) Allocator.Error!void {
             assert(n > 1);
 
             var i: usize = 0;
@@ -122,7 +129,7 @@ pub fn PrimeFactors(comptime T: type) type {
                 }
             }
 
-            try factors.put(prime_factor, 1 + (factors.get(prime_factor) orelse 0));
+            try prime_factor_counts.put(prime_factor, 1 + (prime_factor_counts.get(prime_factor) orelse 0));
 
             if (prime_factor == n) {
                 return;
@@ -132,40 +139,77 @@ pub fn PrimeFactors(comptime T: type) type {
 
             // std.debug.print("Factor: {d}, cofactor: {d}\n", .{ prime_factor, cofactor });
 
-            try getPrimeFactorsHelper(primes, factors, cofactor);
+            try getPrimeFactorsHelper(primes, prime_factor_counts, cofactor);
         }
 
         pub fn init(allocator: Allocator, primes: *Primes(T), n: T) Allocator.Error!Self {
-            var factors = HashMap.init(allocator);
-            try Self.getPrimeFactorsHelper(primes, &factors, n);
+            var prime_factor_counts = HashMap.init(allocator);
+            try Self.getPrimeFactorsHelper(primes, &prime_factor_counts, n);
             return Self{
-                .factors = factors,
+                .prime_factor_counts = prime_factor_counts,
             };
         }
 
         pub fn deinit(self: *Self) void {
-            self.factors.deinit();
+            self.prime_factor_counts.deinit();
             self.* = undefined;
         }
 
         pub fn count(self: *Self) usize {
             var out: usize = 1;
-            var iter = self.factors.valueIterator();
+            var iter = self.prime_factor_counts.valueIterator();
             while (iter.next()) |v| {
                 out *= v.* + 1;
             }
             return out;
         }
+
+        /// Generate a list of all factors
+        pub fn factors(self: *Self, allocator: Allocator) Allocator.Error!std.ArrayList(T) {
+            // Create a list of all prime factors, then multiply together every combination.
+
+            var prime_factor_list = std.ArrayList(T).init(allocator);
+            defer prime_factor_list.deinit();
+
+            {
+                var prime_factor_iter = self.prime_factor_counts.iterator();
+                while (prime_factor_iter.next()) |entry| {
+                    var i: usize = entry.value_ptr.*;
+                    while (i > 0) : (i -= 1) {
+                        try prime_factor_list.append(entry.key_ptr.*);
+                    }
+                }
+            }
+
+            var factor_list = std.ArrayList(T).init(allocator);
+            try factor_list.append(1);
+
+            var factor_combo_iter = try iterutil.all_combinations(T, allocator, prime_factor_list.items[0..]);
+            defer factor_combo_iter.deinit();
+
+            while (factor_combo_iter.next()) |combo| {
+                var product: T = 1;
+                for (combo) |x| {
+                    product *= x;
+                }
+                if (product != factor_list.items[factor_list.items.len - 1]) {
+                    try factor_list.append(product);
+                }
+            }
+
+            return factor_list;
+        }
     };
 }
 
 test "PrimesIter and PrimeFactors" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var primes = Primes(u64).init(allocator);
+    var primes = Primes(u64).init(std.testing.allocator);
     defer primes.deinit();
 
-    try std.testing.expectEqual(@as(u64, 8), try primes.count_prime_factors(24));
+    try std.testing.expectEqual(@as(u64, 8), try primes.count_factors(24));
+
+    var factors = try primes.all_factors(std.testing.allocator, 324);
+    defer factors.deinit();
+
+    try std.testing.expectEqualSlices(u64, &.{ 1, 2, 3, 4, 6, 9, 12, 18, 27, 36, 54, 81, 108, 162, 324 }, factors.items);
 }

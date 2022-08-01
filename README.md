@@ -13,8 +13,7 @@ Run tests for all solutions with `zig build test`
 This is me learning Zig and experimenting with its features. These solutions are probably
 not anywhere near minimal, nor "production-ready". Caveat lector.
 
-That said, there are a few libs in (`./src/common/`) which show off Zig's novel approach
-to generics, which I can only really describe as "static duck-typing":
+Since I only got the standard library, here's some notable things I needed to implement:
 
 * `iterutil.zig` - Iterator helpers (e.g. `iter.map(func1).filter(func2)`) that work with
   generic function and iterators. Will be extra nice once
@@ -22,6 +21,8 @@ to generics, which I can only really describe as "static duck-typing":
   (Looks like there exist a few
   [good libraries](https://github.com/ziglang/zig/issues/6185#issuecomment-683261019) already)
 * `sliceutil.zig` - Generic slice inspection methods (e.g. `indexOf()` and `contains()`)
+* `primes.zig` - Prime number generation and fast factorization.
+* `bigdecimal.zig` - String-based number type for manipulating arbitrarily large numbers.
 
 ## Zig Version
 

@@ -59,7 +59,7 @@ fn firstTriangleNumberWithOverNDivisors(n: usize) u64 {
     while (tris.next()) |tri| {
         if (tri == 1) continue;
 
-        const count = primes.count_prime_factors(tri) catch @panic("Allocation failed");
+        const count = primes.count_factors(tri) catch @panic("Allocation failed");
 
         // std.debug.print("{d} has {d} factors\n", .{ tri, count });
 

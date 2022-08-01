@@ -1,4 +1,7 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
+const assert = std.debug.assert;
+
 const sliceutil = @import("./sliceutil.zig");
 const contains = sliceutil.contains;
 
@@ -193,4 +196,202 @@ pub fn splitStringDelims(input: []const u8, delims: []const u8) SplitDelimIter(u
 
 pub fn splitStringWhitespace(input: []const u8) SplitDelimIter(u8) {
     return SplitDelimIter(u8).init(input, " \n\r\t");
+}
+
+pub fn ComboIter(comptime T: type) type {
+    return struct {
+        const Self = @This();
+
+        allocator: Allocator,
+        input: []const T,
+        next_index: usize,
+        size: usize,
+        child: ?*Self,
+        output: std.ArrayList(T),
+
+        fn init(allocator: Allocator, input: []const T, size: usize) Allocator.Error!Self {
+            assert(size > 0 and size <= input.len);
+
+            var output = try std.ArrayList(T).initCapacity(allocator, size);
+            output.expandToCapacity();
+
+            var child: ?*Self = if (size <= 1)
+                null
+            else blk: {
+                var child = try allocator.create(ComboIter(T));
+                child.* = try Self.init(allocator, input[1..], size - 1);
+                break :blk child;
+            };
+
+            return Self{
+                .allocator = allocator,
+                .input = input,
+                .next_index = 0,
+                .size = size,
+                .child = child,
+                .output = output,
+            };
+        }
+
+        pub fn deinit(self: *Self) void {
+            if (self.child) |child| {
+                child.deinit();
+                self.allocator.destroy(child);
+            }
+            self.output.deinit();
+            self.* = undefined;
+        }
+
+        fn reset(self: *Self, input: []const T, size: usize) void {
+            assert(size > 0 and size <= input.len);
+
+            self.next_index = 0;
+            self.input = input;
+            self.size = size;
+
+            if (size > 1) {
+                if (self.child) |child| {
+                    child.reset(input[1..], size - 1);
+                } else {
+                    @panic("Cannot increase size above original allocation");
+                }
+            }
+        }
+
+        pub fn next(self: *Self) ?[]const T {
+            if (self.next_index + self.size > self.input.len or self.size == 0) return null;
+
+            self.output.items[0] = self.input[self.next_index];
+
+            if (self.size > 1) {
+                if (self.child) |child| {
+                    if (child.next()) |child_list| {
+                        for (child_list) |x, i| {
+                            self.output.items[i + 1] = x;
+                        }
+
+                        return self.output.items[0..self.size];
+                    }
+
+                    self.next_index += 1;
+                    if (self.next_index + self.size > self.input.len) return null;
+
+                    child.reset(self.input[self.next_index + 1 ..], self.size - 1);
+
+                    return self.next();
+                }
+            }
+
+            self.next_index += 1;
+            return self.output.items[0..self.size];
+        }
+    };
+}
+
+pub fn combinations(comptime T: type, allocator: Allocator, input: []const T, size: usize) Allocator.Error!ComboIter(T) {
+    return ComboIter(T).init(allocator, input, size);
+}
+
+test "combinations singles" {
+    const input: [4]usize = .{ 1, 2, 3, 4 };
+    var it = try combinations(usize, std.testing.allocator, input[0..], 1);
+    defer it.deinit();
+
+    try std.testing.expectEqualSlices(usize, &.{1}, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{2}, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{3}, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{4}, it.next().?);
+    try std.testing.expect(it.next() == null);
+}
+
+test "combinations single pair" {
+    const input: [2]usize = .{ 1, 2 };
+    var it = try combinations(usize, std.testing.allocator, input[0..], 2);
+    defer it.deinit();
+
+    try std.testing.expectEqualSlices(usize, &.{ 1, 2 }, it.next().?);
+    try std.testing.expect(it.next() == null);
+}
+
+test "combinations pairs" {
+    const input: [3]usize = .{ 1, 2, 3 };
+    var it = try combinations(usize, std.testing.allocator, input[0..], 2);
+    defer it.deinit();
+
+    try std.testing.expectEqualSlices(usize, &.{ 1, 2 }, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{ 1, 3 }, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{ 2, 3 }, it.next().?);
+    try std.testing.expect(it.next() == null);
+}
+
+test "combinations triplets" {
+    const input: [4]usize = .{ 1, 2, 3, 4 };
+    var it = try combinations(usize, std.testing.allocator, input[0..], 3);
+    defer it.deinit();
+
+    try std.testing.expectEqualSlices(usize, &.{ 1, 2, 3 }, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{ 1, 2, 4 }, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{ 1, 3, 4 }, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{ 2, 3, 4 }, it.next().?);
+    try std.testing.expect(it.next() == null);
+}
+
+pub fn AllCombosIter(comptime T: type) type {
+    return struct {
+        const Self = @This();
+
+        allocator: Allocator,
+        input: []const T,
+        child: ComboIter(T),
+
+        fn init(allocator: Allocator, input: []const T) Allocator.Error!Self {
+            // Init with largest size so that no more allocations are needed later
+            var child = try ComboIter(T).init(allocator, input, input.len);
+            child.reset(input, 1);
+
+            return Self{
+                .allocator = allocator,
+                .input = input,
+                .child = child,
+            };
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.child.deinit();
+            self.* = undefined;
+        }
+
+        pub fn next(self: *Self) ?[]const T {
+            if (self.child.next()) |combo| {
+                return combo;
+            }
+
+            const next_size = self.child.size + 1;
+
+            if (next_size > self.input.len) return null;
+
+            self.child.reset(self.input, next_size);
+
+            return self.next();
+        }
+    };
+}
+
+pub fn all_combinations(comptime T: type, allocator: Allocator, input: []const T) Allocator.Error!AllCombosIter(T) {
+    return AllCombosIter(T).init(allocator, input);
+}
+
+test "all_combinations()" {
+    const input: [3]usize = .{ 1, 2, 3 };
+    var it = try all_combinations(usize, std.testing.allocator, input[0..]);
+    defer it.deinit();
+
+    try std.testing.expectEqualSlices(usize, &.{1}, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{2}, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{3}, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{ 1, 2 }, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{ 1, 3 }, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{ 2, 3 }, it.next().?);
+    try std.testing.expectEqualSlices(usize, &.{ 1, 2, 3 }, it.next().?);
+    try std.testing.expect(it.next() == null);
 }
