@@ -28,12 +28,16 @@ pub fn PrimesIter(comptime T: type) type {
             if (self.cache.items.len == 0) {
                 assert(self.next_index == 0);
                 try self.cache.append(2);
+
+                // It is required to add 3 now so we can skip evens
+                try self.cache.append(3);
+
                 return 2;
             }
 
-            var x = self.cache.items[self.cache.items.len - 1] + 1;
-
-            while (true) : (x += 1) {
+            // `+2` because even numbers greater than 2 are never prime
+            var x = self.cache.items[self.cache.items.len - 1] + 2;
+            while (true) : (x += 2) {
                 for (self.cache.items) |p| {
                     if (x % p == 0) {
                         break;
