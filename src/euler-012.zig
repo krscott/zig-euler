@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 const max = std.math.max;
 const assert = std.debug.assert;
 
-const primelib = @import("./common/prime_iter.zig");
+const Primes = @import("./common/primes.zig").Primes;
 
 pub fn main() anyerror!void {
     const stdout = std.io.getStdOut().writer();
@@ -51,7 +51,7 @@ fn firstTriangleNumberWithOverNDivisors(n: usize) u64 {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var primes = primelib.PrimeIter.init(allocator);
+    var primes = Primes(u64).init(allocator);
     defer primes.deinit();
 
     var tris = TriangleNumbersIter(u64).init();
@@ -59,10 +59,7 @@ fn firstTriangleNumberWithOverNDivisors(n: usize) u64 {
     while (tris.next()) |tri| {
         if (tri == 1) continue;
 
-        var factors = primelib.PrimeFactors.init(allocator, &primes, tri) catch unreachable;
-        defer factors.deinit();
-
-        const count = factors.count();
+        const count = primes.count_prime_factors(tri) catch @panic("Allocation failed");
 
         // std.debug.print("{d} has {d} factors\n", .{ tri, count });
 

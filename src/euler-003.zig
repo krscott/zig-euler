@@ -1,6 +1,7 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
-const PrimeIter = @import("./common/prime_iter.zig").PrimeIter;
+const Primes = @import("./common/primes.zig").Primes;
 
 pub fn main() anyerror!void {
     const stdout = std.io.getStdOut().writer();
@@ -11,8 +12,8 @@ fn answer() u64 {
     return largestPrimeFactor(600851475143);
 }
 
-fn assert_ok(x: PrimeIter.Result) u64 {
-    return x catch unreachable;
+fn panic_on_error(x: Allocator.Error!u64) u64 {
+    return x catch @panic("Allocation Failed");
 }
 
 fn largestPrimeFactor(input: u64) u64 {
@@ -24,12 +25,12 @@ fn largestPrimeFactor(input: u64) u64 {
     var largestFactor: u64 = 0;
     var x = input;
 
-    var primes = PrimeIter.init(allocator);
+    var primes = Primes(u64).init(allocator);
     defer primes.deinit();
 
-    var primes_ok = primes.map(assert_ok);
+    var it = primes.iter().map(panic_on_error);
 
-    while (primes_ok.next()) |p| {
+    while (it.next()) |p| {
         // std.debug.print("{d}\n", .{p});
 
         if (x % p == 0) {
