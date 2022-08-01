@@ -3,6 +3,7 @@ const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
 const iterutil = @import("./iterutil.zig");
+const contains = @import("./sliceutil.zig").contains;
 
 pub fn PrimesIter(comptime T: type) type {
     return struct {
@@ -131,6 +132,12 @@ pub fn PrimeFactors(comptime T: type) type {
                 if (n % prime_factor == 0) {
                     break;
                 }
+
+                // Short-circuit optimization
+                if (n < 2 * prime_factor) {
+                    prime_factor = n;
+                    break;
+                }
             }
 
             try prime_factor_counts.put(prime_factor, 1 + (prime_factor_counts.get(prime_factor) orelse 0));
@@ -196,7 +203,7 @@ pub fn PrimeFactors(comptime T: type) type {
                 for (combo) |x| {
                     product *= x;
                 }
-                if (product != factor_list.items[factor_list.items.len - 1]) {
+                if (!contains(T, factor_list.items, product)) {
                     try factor_list.append(product);
                 }
             }
@@ -214,6 +221,8 @@ test "PrimesIter and PrimeFactors" {
 
     var factors = try primes.all_factors(std.testing.allocator, 324);
     defer factors.deinit();
+
+    std.sort.sort(u64, factors.items[0..], {}, comptime std.sort.asc(u64));
 
     try std.testing.expectEqualSlices(u64, &.{ 1, 2, 3, 4, 6, 9, 12, 18, 27, 36, 54, 81, 108, 162, 324 }, factors.items);
 }
