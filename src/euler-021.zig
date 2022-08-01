@@ -35,16 +35,9 @@ const AmicableCache = struct {
     }
 
     pub fn getSumOfProperDivisors(self: *Self, n: u64) Allocator.Error!u64 {
-        if (n <= 1) return n;
         if (self.sum_cache.get(n)) |sum| return sum;
 
-        var factors = try self.primes.allFactors(self.allocator, n);
-        defer factors.deinit();
-
-        var sum: u64 = 1;
-        for (factors.items[1 .. factors.items.len - 1]) |x| {
-            sum += x;
-        }
+        var sum = try self.primes.sumOfProperDivisors(n);
 
         try self.sum_cache.put(n, sum);
 

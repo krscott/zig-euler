@@ -107,6 +107,20 @@ pub fn Primes(comptime T: type) type {
 
             return pf.factors(allocator);
         }
+
+        pub fn sumOfProperDivisors(self: *Self, n: T) Allocator.Error!T {
+            if (n <= 1) return n;
+
+            var factors = try self.allFactors(self.cache.allocator, n);
+            defer factors.deinit();
+
+            var sum: T = 1;
+            for (factors.items[1 .. factors.items.len - 1]) |x| {
+                sum += x;
+            }
+
+            return sum;
+        }
     };
 }
 
