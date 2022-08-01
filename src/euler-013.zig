@@ -122,7 +122,7 @@ fn answer() !u64 {
     defer a.deinit();
 
     for (number_strings) |s| {
-        try a.add(s);
+        try a.addStr(s);
     }
 
     // std.debug.print("Full number: {s}\n", .{a.slice});

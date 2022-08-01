@@ -44,11 +44,11 @@ pub const BigDecimal = struct {
         self.digits.deinit();
     }
 
-    pub fn initFromString(allocator: Allocator, s: []const u8) Allocator.Error!Self {
+    pub fn initFromStr(allocator: Allocator, s: []const u8) Allocator.Error!Self {
         var self = Self.init(allocator);
         errdefer self.deinit();
 
-        try self.set(s);
+        try self.setStr(s);
 
         return self;
     }
@@ -145,7 +145,11 @@ pub const BigDecimal = struct {
         self.slice = zero_value;
     }
 
-    pub fn set(self: *Self, value: []const u8) Allocator.Error!void {
+    pub fn set(self: *Self, value: *BigDecimal) Allocator.Error!void {
+        return self.setStr(value.slice);
+    }
+
+    pub fn setStr(self: *Self, value: []const u8) Allocator.Error!void {
         const s = trimLeadingZeroes(value);
 
         self.clear();
@@ -158,7 +162,11 @@ pub const BigDecimal = struct {
         }
     }
 
-    pub fn add(self: *Self, value: []const u8) Allocator.Error!void {
+    pub fn add(self: *Self, value: *const BigDecimal) Allocator.Error!void {
+        return self.addStr(value.slice);
+    }
+
+    pub fn addStr(self: *Self, value: []const u8) Allocator.Error!void {
         assert(self.slice.ptr == zero_value.ptr or self.slice.ptr != value.ptr);
 
         const other = trimLeadingZeroes(value);
@@ -195,7 +203,11 @@ pub const BigDecimal = struct {
         }
     }
 
-    pub fn multiply(self: *Self, value: []const u8) Allocator.Error!void {
+    pub fn multiply(self: *Self, value: *const BigDecimal) Allocator.Error!void {
+        return self.multiplyStr(value.slice);
+    }
+
+    pub fn multiplyStr(self: *Self, value: []const u8) Allocator.Error!void {
         assert(self.slice.ptr == zero_value.ptr or self.slice.ptr != value.ptr);
 
         const other = trimLeadingZeroes(value);
@@ -212,11 +224,11 @@ pub const BigDecimal = struct {
 
             var j: u8 = 0;
             while (j < v) : (j += 1) {
-                try acc.add(self.slice);
+                try acc.add(self);
             }
         }
 
-        try self.set(acc.slice);
+        try self.set(&acc);
     }
 };
 
@@ -225,15 +237,15 @@ test "add" {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var a = try BigDecimal.initFromString(allocator, "123");
+    var a = try BigDecimal.initFromStr(allocator, "123");
     defer a.deinit();
 
     errdefer std.debug.print("a.slice = {s}\n", .{a.slice});
 
-    try a.add("9000");
+    try a.addStr("9000");
     try std.testing.expectEqualSlices(u8, "9123", a.slice);
 
-    try a.add("900");
+    try a.addStr("900");
     try std.testing.expectEqualSlices(u8, "10023", a.slice);
 }
 
@@ -243,21 +255,21 @@ test "multiply" {
     const allocator = arena.allocator();
 
     {
-        var a = try BigDecimal.initFromString(allocator, "34");
+        var a = try BigDecimal.initFromStr(allocator, "34");
         defer a.deinit();
         errdefer std.debug.print("a.slice = {s}\n", .{a.slice});
 
-        try a.multiply("13");
+        try a.multiplyStr("13");
 
         try std.testing.expectEqualSlices(u8, "442", a.slice);
     }
 
     {
-        var a = try BigDecimal.initFromString(allocator, "23958233");
+        var a = try BigDecimal.initFromStr(allocator, "23958233");
         defer a.deinit();
         errdefer std.debug.print("a.slice = {s}\n", .{a.slice});
 
-        try a.multiply("5830");
+        try a.multiplyStr("5830");
 
         try std.testing.expectEqualSlices(u8, "139676498390", a.slice);
     }
@@ -275,21 +287,21 @@ test "zero values" {
 
     try std.testing.expectEqualSlices(u8, "", a.slice);
 
-    try a.set("000");
+    try a.setStr("000");
     try std.testing.expectEqualSlices(u8, "", a.slice);
 
-    try a.add(zero_value);
+    try a.addStr(zero_value);
     try std.testing.expectEqualSlices(u8, "", a.slice);
 
-    try a.add("0");
+    try a.addStr("0");
     try std.testing.expectEqualSlices(u8, "", a.slice);
 
-    try a.multiply("007");
+    try a.multiplyStr("007");
     try std.testing.expectEqualSlices(u8, "", a.slice);
 
-    try a.add("005");
+    try a.addStr("005");
     try std.testing.expectEqualSlices(u8, "5", a.slice);
 
-    try a.multiply("0");
+    try a.multiplyStr("0");
     try std.testing.expectEqualSlices(u8, "", a.slice);
 }

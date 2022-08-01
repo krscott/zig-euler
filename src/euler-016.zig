@@ -15,13 +15,13 @@ fn sumOfDigitsOfPowerOf2(p: usize) u64 {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var a = BigDecimal.initFromString(allocator, "1") catch unreachable;
+    var a = BigDecimal.initFromStr(allocator, "1") catch unreachable;
     defer a.deinit();
 
     {
         var i: usize = 0;
         while (i < p) : (i += 1) {
-            a.multiply("2") catch unreachable;
+            a.multiplyStr("2") catch unreachable;
         }
     }
 

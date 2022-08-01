@@ -27,8 +27,8 @@ fn initFactorial(allocator: Allocator, n: u64) !BigDecimal {
 
     var i = n - 1;
     while (i > 0) : (i -= 1) {
-        try multiplier.add("1");
-        try acc.multiply(multiplier.slice);
+        try multiplier.addStr("1");
+        try acc.multiply(&multiplier);
     }
 
     return acc;
