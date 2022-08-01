@@ -11,14 +11,14 @@ pub fn main() anyerror!void {
     try stdout.print("{d}\n", .{answer(allocator)});
 }
 
-test "simple problem" {
-    try std.testing.expectEqual(12, 12);
-}
-
 fn answer(allocator: Allocator) u64 {
     _ = allocator;
 
     return 12345;
+}
+
+test "simple problem" {
+    try std.testing.expectEqual(12, 12);
 }
 
 // test "solution" {
