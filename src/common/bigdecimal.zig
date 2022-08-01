@@ -44,6 +44,28 @@ pub const BigDecimal = struct {
         self.digits.deinit();
     }
 
+    pub fn initFromString(allocator: Allocator, s: []const u8) Allocator.Error!Self {
+        var self = Self.init(allocator);
+        errdefer self.deinit();
+
+        try self.set(s);
+
+        return self;
+    }
+
+    pub fn initFromInt(allocator: Allocator, value: usize) Allocator.Error!Self {
+        var self = Self.init(allocator);
+        errdefer self.deinit();
+
+        var n = value;
+        while (n != 0) : (n /= 10) {
+            const ch = @intCast(u8, n % 10) + '0';
+            try self.pushCharFront(ch);
+        }
+
+        return self;
+    }
+
     /// Expand inner ArrayList and move data to end of inner array.
     fn ensureCapacity(self: *Self, new_capacity: usize) Allocator.Error!void {
 
@@ -134,15 +156,6 @@ pub const BigDecimal = struct {
         while (i < s.len) : (i += 1) {
             try self.pushCharFront(s[s.len - i - 1]);
         }
-    }
-
-    pub fn initFromString(allocator: Allocator, s: []const u8) Allocator.Error!Self {
-        var self = Self.init(allocator);
-        errdefer self.deinit();
-
-        try self.set(s);
-
-        return self;
     }
 
     pub fn add(self: *Self, value: []const u8) Allocator.Error!void {
