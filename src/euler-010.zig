@@ -4,27 +4,25 @@ const Allocator = std.mem.Allocator;
 const Primes = @import("./common/primes.zig").Primes;
 
 pub fn main() anyerror!void {
-    const stdout = std.io.getStdOut().writer();
-    try stdout.print("{d}\n", .{answer()});
-}
-
-fn panic_on_error(x: Allocator.Error!u64) u64 {
-    return x catch @panic("Allocation Failed");
-}
-
-fn sumOfPrimesBelow(x: u64) u64 {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("{d}\n", .{answer(allocator)});
+}
+
+fn sumOfPrimesBelow(allocator: Allocator, x: u64) Allocator.Error!u64 {
     var primes = Primes(u64).init(allocator);
     defer primes.deinit();
 
-    var it = primes.iter().map(panic_on_error);
-
     var sum: u64 = 0;
 
-    while (it.next()) |p| {
+    var it = primes.iter();
+    while (it.next()) |result| {
+        // std.debug.print("{d}\n", .{p});
+        const p = try result;
+
         if (p >= x) {
             break;
         }
@@ -36,11 +34,11 @@ fn sumOfPrimesBelow(x: u64) u64 {
 }
 
 test "simple problem" {
-    try std.testing.expectEqual(sumOfPrimesBelow(10), 17);
+    try std.testing.expectEqual(sumOfPrimesBelow(std.testing.allocator, 10), 17);
 }
 
-fn answer() u64 {
-    return sumOfPrimesBelow(2_000_000);
+fn answer(allocator: Allocator) u64 {
+    return sumOfPrimesBelow(allocator, 2_000_000) catch @panic("Allocation Failed");
 }
 
 // This takes a long time

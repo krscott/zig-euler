@@ -1,5 +1,4 @@
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 pub fn main() anyerror!void {
     const stdout = std.io.getStdOut().writer();

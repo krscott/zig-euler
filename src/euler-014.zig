@@ -1,11 +1,14 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const max = std.math.max;
 const assert = std.debug.assert;
 
 pub fn main() anyerror!void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
     const stdout = std.io.getStdOut().writer();
-    try stdout.print("{d}\n", .{answer()});
+    try stdout.print("{d}\n", .{answer(allocator)});
 }
 
 const CollatzCache = std.hash_map.AutoHashMap(u64, u64);
@@ -41,11 +44,7 @@ fn naiveCollatzLength(n: u64) u64 {
     return count;
 }
 
-fn maxCollatzLength(under: u64) u64 {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
+fn maxCollatzLength(allocator: Allocator, under: u64) u64 {
     var cache = CollatzCache.init(allocator);
     defer cache.deinit();
 
@@ -66,13 +65,15 @@ test "simple problem" {
     try std.testing.expectEqual(naiveCollatzLength(13), 10);
 
     // https://en.wikipedia.org/wiki/Collatz_conjecture
-    try std.testing.expectEqual(maxCollatzLength(100), 97);
+    try std.testing.expectEqual(maxCollatzLength(std.testing.allocator, 100), 97);
 }
 
-fn answer() u64 {
-    return maxCollatzLength(1_000_000);
+fn answer(allocator: Allocator) u64 {
+    return maxCollatzLength(allocator, 1_000_000);
 }
 
 test "solution" {
-    try std.testing.expectEqual(answer(), 837799);
+    try std.testing.expectEqual(answer(
+        std.testing.allocator,
+    ), 837799);
 }

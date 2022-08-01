@@ -1,6 +1,4 @@
 const std = @import("std");
-const Allocator = std.mem.Allocator;
-const max = std.math.max;
 const assert = std.debug.assert;
 
 pub fn main() anyerror!void {

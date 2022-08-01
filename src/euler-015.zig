@@ -2,11 +2,14 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const max = std.math.max;
 const min = std.math.min;
-const assert = std.debug.assert;
 
 pub fn main() anyerror!void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
     const stdout = std.io.getStdOut().writer();
-    try stdout.print("{d}\n", .{answer()});
+    try stdout.print("{d}\n", .{answer(allocator)});
 }
 
 // There exists a closed-form equation, but let's assume I don't know about
@@ -35,15 +38,11 @@ fn countGridRoutesCached(cache: *GridRoutesCache, size: GridSize) Allocator.Erro
     return count;
 }
 
-fn countGridRoutes(size: GridSize) u64 {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
+fn countGridRoutes(allocator: Allocator, size: GridSize) !u64 {
     var cache = GridRoutesCache.init(allocator);
     defer cache.deinit();
 
-    const count = countGridRoutesCached(&cache, size) catch unreachable;
+    const count = try countGridRoutesCached(&cache, size);
 
     // {
     //     var it = cache.iterator();
@@ -58,13 +57,13 @@ fn countGridRoutes(size: GridSize) u64 {
 }
 
 test "simple problem" {
-    try std.testing.expectEqual(countGridRoutes(.{ 2, 2 }), 6);
+    try std.testing.expectEqual(countGridRoutes(std.testing.allocator, .{ 2, 2 }), 6);
 }
 
-fn answer() u64 {
-    return countGridRoutes(.{ 20, 20 });
+fn answer(allocator: Allocator) u64 {
+    return countGridRoutes(allocator, .{ 20, 20 }) catch @panic("error");
 }
 
 test "solution" {
-    try std.testing.expectEqual(answer(), 137846528820);
+    try std.testing.expectEqual(answer(std.testing.allocator), 137846528820);
 }

@@ -1,20 +1,18 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const max = std.math.max;
-const assert = std.debug.assert;
 
 const BigDecimal = @import("./common/bigdecimal.zig").BigDecimal;
 
 pub fn main() anyerror!void {
-    const stdout = std.io.getStdOut().writer();
-    try stdout.print("{d}\n", .{try answer()});
-}
-
-fn answer() !u64 {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("{d}\n", .{answer(allocator)});
+}
+
+fn answer(allocator: Allocator) u64 {
     const number_strings: []const []const u8 = &.{
         "37107287533902102798797998220837590246510135740250",
         "46376937677490009712648124896970078050417018260538",
@@ -122,14 +120,14 @@ fn answer() !u64 {
     defer a.deinit();
 
     for (number_strings) |s| {
-        try a.addStr(s);
+        a.addStr(s) catch @panic("error");
     }
 
     // std.debug.print("Full number: {s}\n", .{a.slice});
 
-    return try std.fmt.parseUnsigned(u64, a.slice[0..10], 10);
+    return std.fmt.parseUnsigned(u64, a.slice[0..10], 10) catch @panic("error");
 }
 
 test "solution" {
-    try std.testing.expectEqual(answer(), 5537376230);
+    try std.testing.expectEqual(answer(std.testing.allocator), 5537376230);
 }

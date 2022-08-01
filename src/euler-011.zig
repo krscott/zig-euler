@@ -4,8 +4,12 @@ const max = std.math.max;
 const assert = std.debug.assert;
 
 pub fn main() anyerror!void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
     const stdout = std.io.getStdOut().writer();
-    try stdout.print("{d}\n", .{answer()});
+    try stdout.print("{d}\n", .{answer(allocator)});
 }
 
 const GridError = error{
@@ -20,8 +24,9 @@ const Grid = struct {
     width: usize,
     height: usize,
 
-    pub fn fromString(allocator: Allocator, s: []const u8) !Self {
+    pub fn initFromString(allocator: Allocator, s: []const u8) !Self {
         var cells = std.ArrayList(u8).init(allocator);
+
         var width: usize = 0;
 
         var col: usize = 0;
@@ -59,6 +64,11 @@ const Grid = struct {
             .width = width,
             .height = cells.items.len / width,
         };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.cells.deinit();
+        self.* = undefined;
     }
 
     fn index(self: *const Self, row: usize, col: usize) ?usize {
@@ -104,12 +114,9 @@ fn findGreatestProduct(grid: Grid, length: usize) u64 {
     return max_prod;
 }
 
-fn findGreatestProductFromString(input: []const u8, length: usize) u64 {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    const grid = Grid.fromString(allocator, input) catch unreachable;
+fn findGreatestProductFromString(allocator: Allocator, input: []const u8, length: usize) !u64 {
+    var grid = try Grid.initFromString(allocator, input);
+    defer grid.deinit();
 
     assert(grid.width == grid.height);
 
@@ -126,7 +133,7 @@ test "simple problem 1" {
         \\01 01 01 01 01 01
     ;
 
-    try std.testing.expectEqual(findGreatestProductFromString(smolgrid[0..], 4), 1788696);
+    try std.testing.expectEqual(findGreatestProductFromString(std.testing.allocator, smolgrid[0..], 4), 1788696);
 }
 
 test "simple problem 2" {
@@ -139,7 +146,7 @@ test "simple problem 2" {
         \\01 01 63 78 14 26
     ;
 
-    try std.testing.expectEqual(findGreatestProductFromString(smolgrid[0..], 4), 1788696);
+    try std.testing.expectEqual(findGreatestProductFromString(std.testing.allocator, smolgrid[0..], 4), 1788696);
 }
 
 test "simple problem 3" {
@@ -152,7 +159,7 @@ test "simple problem 3" {
         \\01 01 01 01 01 14
     ;
 
-    try std.testing.expectEqual(findGreatestProductFromString(smolgrid[0..], 4), 1788696);
+    try std.testing.expectEqual(findGreatestProductFromString(std.testing.allocator, smolgrid[0..], 4), 1788696);
 }
 
 test "simple problem 4" {
@@ -165,7 +172,7 @@ test "simple problem 4" {
         \\01 01 14 01 01 01
     ;
 
-    try std.testing.expectEqual(findGreatestProductFromString(smolgrid[0..], 4), 1788696);
+    try std.testing.expectEqual(findGreatestProductFromString(std.testing.allocator, smolgrid[0..], 4), 1788696);
 }
 
 test "simple problem 5" {
@@ -177,10 +184,10 @@ test "simple problem 5" {
         \\22 31 88 71 51
     ;
 
-    try std.testing.expectEqual(findGreatestProductFromString(smolgrid[0..], 4), 65383560);
+    try std.testing.expectEqual(findGreatestProductFromString(std.testing.allocator, smolgrid[0..], 4), 65383560);
 }
 
-fn answer() u64 {
+fn answer(allocator: Allocator) u64 {
     const grid_str =
         \\08 02 22 97 38 15 00 40 00 75 04 05 07 78 52 12 50 77 91 08
         \\49 49 99 40 17 81 18 57 60 87 17 40 98 43 69 48 04 56 62 00
@@ -204,9 +211,9 @@ fn answer() u64 {
         \\01 70 54 71 83 51 54 69 16 92 33 48 61 43 52 01 89 19 67 48
     ;
 
-    return findGreatestProductFromString(grid_str[0..], 4);
+    return findGreatestProductFromString(allocator, grid_str[0..], 4) catch @panic("error");
 }
 
 test "solution" {
-    try std.testing.expectEqual(answer(), 70600674);
+    try std.testing.expectEqual(answer(std.testing.allocator), 70600674);
 }

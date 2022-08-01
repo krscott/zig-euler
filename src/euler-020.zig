@@ -1,13 +1,16 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const max = std.math.max;
 const assert = std.debug.assert;
 
 const BigDecimal = @import("./common/bigdecimal.zig").BigDecimal;
 
 pub fn main() anyerror!void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
     const stdout = std.io.getStdOut().writer();
-    try stdout.print("{d}\n", .{answer()});
+    try stdout.print("{d}\n", .{answer(allocator)});
 }
 
 fn sumOfDigits(d: *const BigDecimal) u64 {
@@ -34,11 +37,7 @@ fn initFactorial(allocator: Allocator, n: u64) !BigDecimal {
     return acc;
 }
 
-fn sumOfFactorialDigits(n: u64) u64 {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
+fn sumOfFactorialDigits(allocator: Allocator, n: u64) u64 {
     var d = initFactorial(allocator, n) catch unreachable;
     defer d.deinit();
 
@@ -46,13 +45,13 @@ fn sumOfFactorialDigits(n: u64) u64 {
 }
 
 test "simple problem" {
-    try std.testing.expectEqual(sumOfFactorialDigits(10), 27);
+    try std.testing.expectEqual(sumOfFactorialDigits(std.testing.allocator, 10), 27);
 }
 
-fn answer() u64 {
-    return sumOfFactorialDigits(100);
+fn answer(allocator: Allocator) u64 {
+    return sumOfFactorialDigits(allocator, 100);
 }
 
 test "solution" {
-    try std.testing.expectEqual(answer(), 648);
+    try std.testing.expectEqual(answer(std.testing.allocator), 648);
 }

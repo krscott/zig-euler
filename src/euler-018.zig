@@ -1,13 +1,16 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const max = std.math.max;
-const assert = std.debug.assert;
 
 const iterutil = @import("./common/iterutil.zig");
 
 pub fn main() anyerror!void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
     const stdout = std.io.getStdOut().writer();
-    try stdout.print("{d}\n", .{answer()});
+    try stdout.print("{d}\n", .{answer(allocator)});
 }
 
 const TriGridError = error{
@@ -111,12 +114,8 @@ fn findBestPath(comptime T: type, allocator: Allocator, input: []const u8) !T {
     return maxScore;
 }
 
-fn findBestPathStandalone(input: []const u8) usize {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    return findBestPath(usize, allocator, input) catch unreachable;
+fn findBestPathStandalone(allocator: Allocator, input: []const u8) !usize {
+    return findBestPath(usize, allocator, input);
 }
 
 test "simple problem" {
@@ -127,10 +126,10 @@ test "simple problem" {
         \\8 5 9 3
     ;
 
-    try std.testing.expectEqual(findBestPathStandalone(text), 23);
+    try std.testing.expectEqual(findBestPathStandalone(std.testing.allocator, text), 23);
 }
 
-fn answer() u64 {
+fn answer(allocator: Allocator) u64 {
     const text =
         \\75
         \\95 64
@@ -149,9 +148,9 @@ fn answer() u64 {
         \\04 62 98 27 23 09 70 98 73 93 38 53 60 04 23
     ;
 
-    return findBestPathStandalone(text);
+    return findBestPathStandalone(allocator, text) catch @panic("error");
 }
 
 test "solution" {
-    try std.testing.expectEqual(answer(), 1074);
+    try std.testing.expectEqual(answer(std.testing.allocator), 1074);
 }
