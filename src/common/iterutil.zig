@@ -431,8 +431,8 @@ pub fn PermIter(comptime T: type) type {
         output: std.ArrayList(T),
         is_done: bool,
 
-        fn init(allocator: Allocator, input: []const T, pick: usize) Allocator.Error!Self {
-            var next_state = try initArrayListLen(usize, allocator, pick);
+        fn init(allocator: Allocator, input: []const T) Allocator.Error!Self {
+            var next_state = try initArrayListLen(usize, allocator, input.len);
 
             // Fill array with each element's index: .{0, 1, 2, 3, ...}
             {
@@ -446,8 +446,8 @@ pub fn PermIter(comptime T: type) type {
                 .allocator = allocator,
                 .input = input,
                 .next_state = next_state,
-                .output = try initArrayListLen(T, allocator, pick),
-                .is_done = input.len == 0 or pick == 0,
+                .output = try initArrayListLen(T, allocator, input.len),
+                .is_done = input.len == 0,
             };
         }
 
@@ -458,7 +458,7 @@ pub fn PermIter(comptime T: type) type {
         }
 
         /// Check if `state` is in final state.
-        /// e.g. In 4-pick-3, state == .{3, 2, 1}
+        /// e.g. In 4-p-3, state == .{3, 2, 1}
         fn isDone(state: []const usize, last_value: usize) bool {
             for (state) |x, i| {
                 if (x != last_value - i) return false;
@@ -476,39 +476,70 @@ pub fn PermIter(comptime T: type) type {
             return true;
         }
 
-        fn incrementState(state: []usize, last_value: usize) void {
-            var i = state.len - 1;
-            while (true) : (i -= 1) {
-                if (state[i] == last_value) {
-                    state[i] = 0;
-                } else {
-                    state[i] += 1;
-                    return;
+        fn indexOfSuccessorAfter(a: []const usize, start: usize) usize {
+            var out: usize = start + 1;
+            var i: usize = out + 1;
+            while (i < a.len) : (i += 1) {
+                if (a[i] > a[start] and a[i] < a[out]) {
+                    out = i;
                 }
-
-                if (i == 0) return;
             }
+            return out;
+        }
+
+        fn swapIndices(a: []usize, i: usize, j: usize) void {
+            const tmp = a[i];
+            a[i] = a[j];
+            a[j] = tmp;
         }
 
         pub fn next(self: *Self) ?[]const T {
             if (self.is_done) return null;
+
+            const state: []usize = self.next_state.items;
 
             // for (self.next_state.items) |i| {
             //     std.debug.print("{d}", .{i});
             // }
             // std.debug.print("\n", .{});
 
-            for (self.next_state.items) |x, i| {
+            // Prepare output based on the current state
+            for (state) |x, i| {
                 self.output.items[i] = self.input[x];
             }
 
-            if (isDone(self.next_state.items, self.input.len - 1)) {
-                self.is_done = true;
-            } else {
-                while (true) {
-                    incrementState(self.next_state.items, self.input.len - 1);
-                    if (isValidState(self.next_state.items)) break;
+            // Generate next state
+            if (state.len > 2) {
+                // From the right, find smallest element `i` which is smaller than its right-neighbor
+                var i: usize = state.len - 2;
+                while (state[i] >= state[i + 1]) : (i -= 1) {
+                    if (i == 0) {
+                        self.is_done = true;
+                        return self.output.items;
+                    }
                 }
+
+                // From left, after i, find next smallest element `j`
+                const j = indexOfSuccessorAfter(state, i);
+
+                // Swap `i` and `j`
+                swapIndices(state, i, j);
+
+                // Sort the slice to the right of `i`
+                if (i + 1 < state.len) {
+                    std.sort.sort(
+                        usize,
+                        state[i + 1 ..],
+                        {},
+                        comptime std.sort.asc(usize),
+                    );
+                }
+            } else if (state.len == 2) {
+                self.is_done = state[0] > state[1];
+                swapIndices(state, 0, 1);
+            } else {
+                assert(state.len == 1);
+                self.is_done = true;
             }
 
             return self.output.items;
@@ -516,12 +547,12 @@ pub fn PermIter(comptime T: type) type {
     };
 }
 
-pub fn permutations(comptime T: type, allocator: Allocator, input: []const T, pick: usize) Allocator.Error!PermIter(T) {
-    return PermIter(T).init(allocator, input, pick);
+pub fn permutations(comptime T: type, allocator: Allocator, input: []const T) Allocator.Error!PermIter(T) {
+    return PermIter(T).init(allocator, input);
 }
 
-test "permutations 3 pick 3" {
-    var it = try permutations(u8, std.testing.allocator, "abc", 3);
+test "permutations size 3" {
+    var it = try permutations(u8, std.testing.allocator, "abc");
     defer it.deinit();
 
     try std.testing.expectEqualStrings("abc", it.next().?);
@@ -533,25 +564,19 @@ test "permutations 3 pick 3" {
     try std.testing.expect(it.next() == null);
 }
 
-test "permutations 3 pick 2" {
-    var it = try permutations(u8, std.testing.allocator, "abc", 2);
+test "permutations size 2" {
+    var it = try permutations(u8, std.testing.allocator, "ab");
     defer it.deinit();
 
     try std.testing.expectEqualStrings("ab", it.next().?);
-    try std.testing.expectEqualStrings("ac", it.next().?);
     try std.testing.expectEqualStrings("ba", it.next().?);
-    try std.testing.expectEqualStrings("bc", it.next().?);
-    try std.testing.expectEqualStrings("ca", it.next().?);
-    try std.testing.expectEqualStrings("cb", it.next().?);
     try std.testing.expect(it.next() == null);
 }
 
-test "permutations 3 pick 1" {
-    var it = try permutations(u8, std.testing.allocator, "abc", 1);
+test "permutations size 1" {
+    var it = try permutations(u8, std.testing.allocator, "a");
     defer it.deinit();
 
     try std.testing.expectEqualStrings("a", it.next().?);
-    try std.testing.expectEqualStrings("b", it.next().?);
-    try std.testing.expectEqualStrings("c", it.next().?);
     try std.testing.expect(it.next() == null);
 }

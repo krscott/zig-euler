@@ -40,7 +40,7 @@ fn getNthLex(allocator: Allocator, size: u8, n: usize) !usize {
         }
     }
 
-    var perm = try permutations(u8, allocator, list.items, list.items.len);
+    var perm = try permutations(u8, allocator, list.items);
     defer perm.deinit();
 
     const nth_perm = perm
@@ -65,7 +65,6 @@ test "simple problem" {
     try std.testing.expectEqual(getNthLex(std.testing.allocator, 4, 2), 0132);
 }
 
-// TODO: Optimize: https://www.baeldung.com/cs/array-generate-all-permutations
-// test "solution" {
-//     try std.testing.expectEqual(answer(std.testing.allocator), 2783915460);
-// }
+test "solution" {
+    try std.testing.expectEqual(answer(std.testing.allocator), 2783915460);
+}
