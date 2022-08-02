@@ -580,3 +580,7 @@ test "permutations size 1" {
     try std.testing.expectEqualStrings("a", it.next().?);
     try std.testing.expect(it.next() == null);
 }
+
+pub fn contextEqIndex(ctx: anytype) bool {
+    return ctx.context == ctx.index;
+}
