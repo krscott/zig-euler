@@ -13,65 +13,92 @@ pub fn main() anyerror!void {
     try stdout.print("{d}\n", .{answer(allocator)});
 }
 
+/// Because @sizeOf(?bool) is two bytes, but I only need one trit.
+const MaybeBool = enum {
+    True,
+    False,
+    FileNotFound,
+};
+
 const AbundantCache = struct {
+    const limit = 28123;
     const Self = @This();
 
-    primes: Primes(u64),
-    is_abundant_cache: std.AutoHashMap(u64, bool),
-    abundant_sums: std.AutoHashMap(u64, void),
+    allocator: Allocator,
+    primes: Primes(usize),
+    known_abundants: []MaybeBool,
+    known_sum_of_abundants: []bool,
 
-    pub fn init(allocator: Allocator) Self {
-        return Self{
-            .primes = Primes(u64).init(allocator),
-            .is_abundant_cache = std.AutoHashMap(u64, bool).init(allocator),
-            .abundant_sums = std.AutoHashMap(u64, void).init(allocator),
+    pub fn init(allocator: Allocator) !Self {
+        var self = Self{
+            .allocator = allocator,
+            .primes = Primes(usize).init(allocator),
+            .known_abundants = try allocator.alloc(MaybeBool, limit),
+            .known_sum_of_abundants = try allocator.alloc(bool, limit),
         };
+
+        std.mem.set(MaybeBool, self.known_abundants, MaybeBool.FileNotFound);
+        std.mem.set(bool, self.known_sum_of_abundants, false);
+
+        return self;
     }
 
     pub fn deinit(self: *Self) void {
         self.primes.deinit();
-        self.is_abundant_cache.deinit();
+        self.allocator.free(self.known_abundants);
+        self.allocator.free(self.known_sum_of_abundants);
         self.* = undefined;
     }
 
-    pub fn isAbundant(self: *Self, n: u64) !bool {
-        if (self.is_abundant_cache.get(n)) |a| return a;
-        const a: bool = (try self.primes.sumOfProperDivisors(n)) > n;
-        try self.is_abundant_cache.put(n, a);
-        return a;
+    pub fn isAbundant(self: *Self, n: usize) !bool {
+        if (n >= limit) @panic("n too big");
+        return switch (self.known_abundants[n]) {
+            .FileNotFound => b: {
+                if ((try self.primes.sumOfProperDivisors(n)) > n) {
+                    self.known_abundants[n] = .True;
+                    break :b true;
+                } else {
+                    self.known_abundants[n] = .False;
+                    break :b false;
+                }
+            },
+            .True => true,
+            .False => false,
+        };
     }
 
-    pub fn checkAbundantSums(self: *Self, a: u64, b: u64) !void {
+    pub fn checkAbundantSums(self: *Self, a: usize, b: usize) !void {
+        if (a + b >= limit) return;
         if ((try self.isAbundant(a)) and (try self.isAbundant(b))) {
-            try self.abundant_sums.put(a + b, {});
+            self.known_sum_of_abundants[a + b] = true;
         }
     }
 
-    pub fn isAbundantSum(self: *Self, n: u64) bool {
-        if (self.abundant_sums.get(n)) |_| return true;
-        return false;
+    pub fn isKnownSumOfAbundants(self: *Self, n: usize) bool {
+        if (n > limit) return true;
+        return self.known_sum_of_abundants[n];
     }
 };
 
-fn answer(allocator: Allocator) u64 {
+fn answer(allocator: Allocator) usize {
     // Upper limits for abundant numbers we need to actually check
     const upper = 28123;
 
-    var abundants = AbundantCache.init(allocator);
+    var abundants = AbundantCache.init(allocator) catch @panic("Allocation error");
     defer abundants.deinit();
 
-    var a: u64 = 1;
+    var a: usize = 1;
     while (a < upper) : (a += 1) {
-        var b: u64 = a;
+        var b: usize = a;
         while (a + b < upper) : (b += 1) {
             abundants.checkAbundantSums(a, b) catch @panic("error");
         }
     }
 
-    var sum_non_abundants: u64 = 0;
-    var i: u64 = 1;
+    var sum_non_abundants: usize = 0;
+    var i: usize = 1;
     while (i < upper) : (i += 1) {
-        if (!abundants.isAbundantSum(i)) {
+        if (!abundants.isKnownSumOfAbundants(i)) {
             sum_non_abundants += i;
         }
     }
@@ -80,13 +107,13 @@ fn answer(allocator: Allocator) u64 {
 }
 
 test "simple problem" {
-    var abundants = AbundantCache.init(std.testing.allocator);
+    var abundants = try AbundantCache.init(std.testing.allocator);
     defer abundants.deinit();
 
     try std.testing.expectEqual(abundants.isAbundant(28), false);
     try std.testing.expectEqual(abundants.isAbundant(12), true);
 }
 
-// test "solution" {
-//     try std.testing.expectEqual(answer(std.testing.allocator), 12345);
-// }
+test "solution" {
+    try std.testing.expectEqual(answer(std.testing.allocator), 4179871);
+}
