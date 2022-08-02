@@ -4,6 +4,7 @@ const assert = std.debug.assert;
 
 const sliceutil = @import("./sliceutil.zig");
 const contains = sliceutil.contains;
+const initArrayListLen = sliceutil.initArrayListLen;
 
 fn FnReturnType(comptime f: anytype) type {
     return @typeInfo(@TypeOf(f)).Fn.return_type.?;
@@ -18,10 +19,11 @@ pub fn IteratorMixin(comptime Self: type) type {
 
     return struct {
         pub fn withContext(self: *Self, context: anytype) ContextIter(Self, @TypeOf(context)) {
-            return ContextIter(Self, @TypeOf(context)){ .context = context, .base = self };
+            return ContextIter(Self, @TypeOf(context)).init(self, context);
         }
 
         pub usingnamespace if (@typeInfo(Item) == .Struct and @hasField(Item, "context")) struct {
+            // TODO: Better way to do this in later Zig version?
             const ContextDataType = @typeInfo(Item).Struct.fields[1].field_type;
 
             fn getContextData(context: anytype) ContextDataType {
@@ -29,6 +31,11 @@ pub fn IteratorMixin(comptime Self: type) type {
             }
 
             pub fn dropContext(self: *Self) MapIter(Self, getContextData, ContextDataType) {
+                comptime {
+                    std.testing.expectEqualStrings("data", @typeInfo(Item).Struct.fields[1].name[0..]) //
+                    catch @compileError("!! Unexpected Context layout");
+                }
+
                 return MapIter(Self, getContextData, ContextDataType){ .base = self };
             }
         } else struct {};
@@ -59,6 +66,7 @@ pub fn Context(comptime ContextType: type, comptime DataType: type) type {
     return struct {
         context: ContextType,
         data: DataType,
+        index: usize,
     };
 }
 
@@ -70,9 +78,23 @@ pub fn ContextIter(comptime BaseIter: type, comptime ContextType: type) type {
 
         context: ContextType,
         base: *BaseIter,
+        index: usize,
+
+        fn init(base: *BaseIter, context: ContextType) Self {
+            return Self{
+                .index = 0,
+                .context = context,
+                .base = base,
+            };
+        }
 
         pub fn next(self: *Self) ?Context(ContextType, DataType) {
-            return Context(ContextType, DataType){ .context = self.context, .data = self.base.next() orelse return null };
+            defer self.index += 1;
+            return Context(ContextType, DataType){
+                .context = self.context,
+                .data = self.base.next() orelse return null,
+                .index = self.index,
+            };
         }
 
         pub usingnamespace IteratorMixin(Self);
@@ -200,6 +222,7 @@ pub fn splitStringWhitespace(input: []const u8) SplitDelimIter(u8) {
 
 pub fn ComboIter(comptime T: type) type {
     return struct {
+        pub usingnamespace IteratorMixin(Self);
         const Self = @This();
 
         allocator: Allocator,
@@ -338,6 +361,7 @@ test "combinations triplets" {
 
 pub fn AllCombosIter(comptime T: type) type {
     return struct {
+        pub usingnamespace IteratorMixin(Self);
         const Self = @This();
 
         allocator: Allocator,
@@ -393,5 +417,141 @@ test "allCombinations()" {
     try std.testing.expectEqualSlices(usize, &.{ 1, 3 }, it.next().?);
     try std.testing.expectEqualSlices(usize, &.{ 2, 3 }, it.next().?);
     try std.testing.expectEqualSlices(usize, &.{ 1, 2, 3 }, it.next().?);
+    try std.testing.expect(it.next() == null);
+}
+
+pub fn PermIter(comptime T: type) type {
+    return struct {
+        pub usingnamespace IteratorMixin(Self);
+        const Self = @This();
+
+        allocator: Allocator,
+        input: []const T,
+        next_state: std.ArrayList(usize),
+        output: std.ArrayList(T),
+        is_done: bool,
+
+        fn init(allocator: Allocator, input: []const T, pick: usize) Allocator.Error!Self {
+            var next_state = try initArrayListLen(usize, allocator, pick);
+
+            // Fill array with each element's index: .{0, 1, 2, 3, ...}
+            {
+                var i: usize = 0;
+                while (i < next_state.items.len) : (i += 1) {
+                    next_state.items[i] = i;
+                }
+            }
+
+            return Self{
+                .allocator = allocator,
+                .input = input,
+                .next_state = next_state,
+                .output = try initArrayListLen(T, allocator, pick),
+                .is_done = input.len == 0 or pick == 0,
+            };
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.next_state.deinit();
+            self.output.deinit();
+            self.* = undefined;
+        }
+
+        /// Check if `state` is in final state.
+        /// e.g. In 4-pick-3, state == .{3, 2, 1}
+        fn isDone(state: []const usize, last_value: usize) bool {
+            for (state) |x, i| {
+                if (x != last_value - i) return false;
+            }
+            return true;
+        }
+
+        /// Check if all values are unique
+        fn isValidState(state: []usize) bool {
+            for (state) |x, i| {
+                for (state[0..i]) |y| {
+                    if (x == y) return false;
+                }
+            }
+            return true;
+        }
+
+        fn incrementState(state: []usize, last_value: usize) void {
+            var i = state.len - 1;
+            while (true) : (i -= 1) {
+                if (state[i] == last_value) {
+                    state[i] = 0;
+                } else {
+                    state[i] += 1;
+                    return;
+                }
+
+                if (i == 0) return;
+            }
+        }
+
+        pub fn next(self: *Self) ?[]const T {
+            if (self.is_done) return null;
+
+            // for (self.next_state.items) |i| {
+            //     std.debug.print("{d}", .{i});
+            // }
+            // std.debug.print("\n", .{});
+
+            for (self.next_state.items) |x, i| {
+                self.output.items[i] = self.input[x];
+            }
+
+            if (isDone(self.next_state.items, self.input.len - 1)) {
+                self.is_done = true;
+            } else {
+                while (true) {
+                    incrementState(self.next_state.items, self.input.len - 1);
+                    if (isValidState(self.next_state.items)) break;
+                }
+            }
+
+            return self.output.items;
+        }
+    };
+}
+
+pub fn permutations(comptime T: type, allocator: Allocator, input: []const T, pick: usize) Allocator.Error!PermIter(T) {
+    return PermIter(T).init(allocator, input, pick);
+}
+
+test "permutations 3 pick 3" {
+    var it = try permutations(u8, std.testing.allocator, "abc", 3);
+    defer it.deinit();
+
+    try std.testing.expectEqualStrings("abc", it.next().?);
+    try std.testing.expectEqualStrings("acb", it.next().?);
+    try std.testing.expectEqualStrings("bac", it.next().?);
+    try std.testing.expectEqualStrings("bca", it.next().?);
+    try std.testing.expectEqualStrings("cab", it.next().?);
+    try std.testing.expectEqualStrings("cba", it.next().?);
+    try std.testing.expect(it.next() == null);
+}
+
+test "permutations 3 pick 2" {
+    var it = try permutations(u8, std.testing.allocator, "abc", 2);
+    defer it.deinit();
+
+    try std.testing.expectEqualStrings("ab", it.next().?);
+    try std.testing.expectEqualStrings("ac", it.next().?);
+    try std.testing.expectEqualStrings("ba", it.next().?);
+    try std.testing.expectEqualStrings("bc", it.next().?);
+    try std.testing.expectEqualStrings("ca", it.next().?);
+    try std.testing.expectEqualStrings("cb", it.next().?);
+    try std.testing.expect(it.next() == null);
+}
+
+test "permutations 3 pick 1" {
+    var it = try permutations(u8, std.testing.allocator, "abc", 1);
+    defer it.deinit();
+
+    try std.testing.expectEqualStrings("a", it.next().?);
+    try std.testing.expectEqualStrings("b", it.next().?);
+    try std.testing.expectEqualStrings("c", it.next().?);
     try std.testing.expect(it.next() == null);
 }
