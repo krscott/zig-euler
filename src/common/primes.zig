@@ -40,7 +40,7 @@ pub fn PrimesIter(comptime T: type) type {
             var x = self.cache.items[self.cache.items.len - 1] + 2;
             while (true) : (x += 2) {
                 for (self.cache.items) |p| {
-                    if (x % p == 0) {
+                    if (@rem(x, p) == 0) {
                         break;
                     }
                 } else {
@@ -120,6 +120,47 @@ pub fn Primes(comptime T: type) type {
             }
 
             return sum;
+        }
+
+        pub fn lookup(self: *Self, allocator: Allocator) PrimeLookup(T) {
+            return PrimeLookup(T).init(allocator, self);
+        }
+    };
+}
+
+pub fn PrimeLookup(comptime T: type) type {
+    return struct {
+        const Self = @This();
+        const Set = std.AutoHashMap(T, void);
+
+        primes_iter: PrimesIter(T),
+        known_primes: Set,
+        highest_prime_checked: T,
+
+        fn init(allocator: Allocator, primes: *Primes(T)) Self {
+            return Self{
+                .primes_iter = primes.iter(),
+                .known_primes = Set.init(allocator),
+                .highest_prime_checked = 0,
+            };
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.known_primes.deinit();
+            self.* = undefined;
+        }
+
+        pub fn isPrime(self: *Self, n: T) Allocator.Error!bool {
+            if (n < 2) return false;
+            if (self.known_primes.get(n)) |_| return true;
+            if (n < self.highest_prime_checked) return false;
+
+            while (true) {
+                self.highest_prime_checked = try self.primes_iter.next() orelse @panic("primes iter null");
+                try self.known_primes.put(self.highest_prime_checked, {});
+                if (n == self.highest_prime_checked) return true;
+                if (n < self.highest_prime_checked) return false;
+            }
         }
     };
 }
