@@ -71,7 +71,7 @@ fn TriGrid(comptime T: type) type {
     };
 }
 
-fn findBestPath(comptime T: type, allocator: Allocator, input: []const u8) !T {
+pub fn findBestPath(comptime T: type, allocator: Allocator, input: []const u8) !T {
     var grid = try TriGrid(T).init(allocator, input);
     defer grid.deinit();
 
@@ -114,10 +114,6 @@ fn findBestPath(comptime T: type, allocator: Allocator, input: []const u8) !T {
     return maxScore;
 }
 
-fn findBestPathStandalone(allocator: Allocator, input: []const u8) !usize {
-    return findBestPath(usize, allocator, input);
-}
-
 test "simple problem" {
     const text =
         \\   3
@@ -126,7 +122,7 @@ test "simple problem" {
         \\8 5 9 3
     ;
 
-    try std.testing.expectEqual(findBestPathStandalone(std.testing.allocator, text), 23);
+    try std.testing.expectEqual(findBestPath(usize, std.testing.allocator, text), 23);
 }
 
 fn answer(allocator: Allocator) u64 {
@@ -148,7 +144,7 @@ fn answer(allocator: Allocator) u64 {
         \\04 62 98 27 23 09 70 98 73 93 38 53 60 04 23
     ;
 
-    return findBestPathStandalone(allocator, text) catch @panic("error");
+    return findBestPath(usize, allocator, text) catch @panic("error");
 }
 
 test "solution" {
