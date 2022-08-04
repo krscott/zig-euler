@@ -20,7 +20,8 @@ Since I only got the standard library, here's some notable things I needed to im
   [function expressions](https://github.com/ziglang/zig/issues/1717) are added.
   (Looks like there exist a few
   [good libraries](https://github.com/ziglang/zig/issues/6185#issuecomment-683261019) already)
-* `sliceutil.zig` - Generic slice inspection methods (e.g. `indexOf()` and `contains()`)
+* `sliceutil.zig` - Generic slice inspection functions (e.g. `indexOf()` and `contains()`)
+  and a `formatSlice()` function for easily formatting/printing slices.
 * `primes.zig` - Prime number generation and fast factorization.
 * `bigdecimal.zig` - String-based number type for manipulating arbitrarily large numbers.
 
