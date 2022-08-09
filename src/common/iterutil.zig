@@ -220,6 +220,10 @@ pub fn splitStringWhitespace(input: []const u8) SplitDelimIter(u8) {
     return SplitDelimIter(u8).init(input, " \n\r\t");
 }
 
+pub fn splitLines(input: []const u8) SplitDelimIter(u8) {
+    return SplitDelimIter(u8).init(input, "\n\r");
+}
+
 pub fn ComboIter(comptime T: type) type {
     return struct {
         pub usingnamespace IteratorMixin(Self);
