@@ -133,12 +133,14 @@ pub fn PrimeLookup(comptime T: type) type {
         const Self = @This();
         const Set = std.AutoHashMap(T, void);
 
+        primes: *Primes(T),
         primes_iter: PrimesIter(T),
         known_primes: Set,
         highest_prime_checked: T,
 
         fn init(allocator: Allocator, primes: *Primes(T)) Self {
             return Self{
+                .primes = primes,
                 .primes_iter = primes.iter(),
                 .known_primes = Set.init(allocator),
                 .highest_prime_checked = 0,
