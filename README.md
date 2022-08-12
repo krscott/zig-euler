@@ -24,6 +24,7 @@ Since I only got the standard library, here's some notable things I needed to im
   and a `formatSlice()` function for easily formatting/printing slices.
 * `primes.zig` - Prime number generation and fast factorization.
 * `bigdecimal.zig` - String-based number type for manipulating arbitrarily large numbers.
+* `fitting.zig` - Least-squares curve-fitting on data points
 
 ## Zig Version
 
