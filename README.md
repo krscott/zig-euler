@@ -29,3 +29,7 @@ Since I only got the standard library, here's some notable things I needed to im
 ## Zig Version
 
 0.10.0-dev.3385+c0a1b4fa4
+
+Almost 0.10.1:
+* requires `-fstage1`
+* fix errors in `std/os.zig`: `0` -> `@as(usize, 0)`

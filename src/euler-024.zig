@@ -62,7 +62,7 @@ fn answer(allocator: Allocator) usize {
 
 test "simple problem" {
     try std.testing.expectEqual(getNthLex(std.testing.allocator, 3, 4), 120);
-    try std.testing.expectEqual(getNthLex(std.testing.allocator, 4, 2), 0132);
+    try std.testing.expectEqual(getNthLex(std.testing.allocator, 4, 2), 132);
 }
 
 test "solution" {
